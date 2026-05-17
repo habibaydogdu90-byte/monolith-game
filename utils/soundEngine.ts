@@ -1,81 +1,39 @@
-// src/utils/soundEngine.ts
+class SoundEngine {
+  private sounds: Record<string, HTMLAudioElement> = {};
+  private initialized = false;
 
-let audioCtx: AudioContext | null = null;
-
-export const initAudio = () => {
-  if (typeof window === 'undefined') return;
-  
-  try {
-    if (!audioCtx) {
-      const AudioContext = (window.AudioContext || (window as any).webkitAudioContext) as typeof window.AudioContext;
-      audioCtx = new AudioContext();
-      console.log("🎵 [SES MOTORU]: Kuruldu. İlk durum:", audioCtx.state);
-    }
+  init() {
+    if (this.initialized || typeof window === 'undefined') return;
     
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume().then(() => {
-        console.log("🔓 [SES MOTORU]: Tarayıcı kilidi kırıldı! Yeni durum:", audioCtx?.state);
+    try {
+      // İndirdiğin ses dosyalarını belleğe alıyoruz
+      this.sounds.drop = new Audio('/sounds/drop.mp3');
+      this.sounds.perfect = new Audio('/sounds/perfect.mp3');
+      this.sounds.gameover = new Audio('/sounds/gameover.mp3');
+      
+      Object.values(this.sounds).forEach(audio => {
+        audio.load(); // Gecikmeyi önlemek için önceden yüklüyoruz
+        audio.volume = 0.7; // Ses yüksekliği ayarı
       });
+      
+      this.initialized = true;
+    } catch (error) {
+      console.warn("[Ses Motoru] Başlatılamadı:", error);
     }
+  }
 
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-    gainNode.gain.value = 0.001; 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 0.1);
+  play(name: 'drop' | 'perfect' | 'gameover') {
+    if (!this.initialized) this.init();
+    if (typeof window === 'undefined') return;
     
-  } catch (error) {
-    console.error("🚨 [SES MOTORU HATASI]:", error);
-  }
-};
-
-export const playSound = (type: 'perfect' | 'cut' | 'gameover', comboLevel: number = 0) => {
-  if (typeof window === 'undefined') return;
-  
-  if (!audioCtx) initAudio();
-  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-  if (!audioCtx) return; 
-
-  try {
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    const now = audioCtx.currentTime;
-
-    if (type === 'perfect') {
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(440 + (comboLevel * 50), now);
-      // SES ŞİDDETİ ARTIRILDI: 0.5 -> 1.5
-      gainNode.gain.setValueAtTime(1.5, now);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-      oscillator.start(now);
-      oscillator.stop(now + 0.5);
-    } 
-    else if (type === 'cut') {
-      oscillator.type = 'triangle';
-      oscillator.frequency.setValueAtTime(150, now);
-      // SES ŞİDDETİ ARTIRILDI: 0.4 -> 1.2
-      gainNode.gain.setValueAtTime(1.2, now);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-      oscillator.start(now);
-      oscillator.stop(now + 0.2);
-    } 
-    else if (type === 'gameover') {
-      oscillator.type = 'sawtooth';
-      oscillator.frequency.setValueAtTime(100, now);
-      oscillator.frequency.exponentialRampToValueAtTime(10, now + 1);
-      // SES ŞİDDETİ ARTIRILDI: 0.6 -> 2.0 (Yıkılma anı artık çok daha gürültülü)
-      gainNode.gain.setValueAtTime(2.0, now);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 1);
-      oscillator.start(now);
-      oscillator.stop(now + 1);
+    const sound = this.sounds[name];
+    if (sound) {
+      sound.currentTime = 0; // Sesi başa sarıp tekrar çal
+      sound.play().catch(e => console.warn("[Ses Motoru] Tarayıcı sesi engelledi:", e));
     }
-  } catch (err) {
-    console.error("🚨 [SES EFEKT HATASI]:", err);
   }
-};
+}
+
+export const soundEngine = new SoundEngine();
+export const initAudio = () => soundEngine.init();
+export const playSound = (name: 'drop' | 'perfect' | 'gameover') => soundEngine.play(name);

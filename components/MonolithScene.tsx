@@ -1,71 +1,15 @@
 'use client';
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Edges } from '@react-three/drei';
 import * as THREE from 'three';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { useGameStore, BlockData } from '@/store/useGameStore';
-
-// --- PROSEDÜREL BRÜTALİST BETON DOKU MOTORU ---
-// Kodla, ham betonun gözenek ve pürüzlerini çizen fonksiyon
-const createConcreteTexture = () => {
-  if (typeof window === 'undefined') return null;
-  
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-
-  // 1. Ana Beton Grisi Taban
-  ctx.fillStyle = '#7a7a7a';
-  ctx.fillRect(0, 0, 512, 512);
-
-  // 2. Mikro Gözenekler ve Çimento Grenleri (Noise)
-  for (let i = 0; i < 90000; i++) {
-    const x = Math.random() * 512;
-    const y = Math.random() * 512;
-    const size = Math.random() * 1.5;
-    const noise = (Math.random() - 0.5) * 40; // Açık ve koyu noktacıklar
-    ctx.fillStyle = `rgba(${122 + noise}, ${122 + noise}, ${122 + noise}, 0.2)`;
-    ctx.fillRect(x, y, size, size);
-  }
-
-  // 3. Kalıp Lekeleri ve Su İzleri (Mimari Kusurlar)
-  for (let i = 0; i < 20; i++) {
-    const x = Math.random() * 512;
-    const y = Math.random() * 512;
-    const radius = Math.random() * 120 + 40;
-    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, 'rgba(45, 45, 45, 0.25)');
-    gradient.addColorStop(1, 'rgba(122, 122, 122, 0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1, 1); 
-  return texture;
-};
+import { playSound } from '@/utils/soundEngine';
 
 function CameraController() {
   const { blocks, gameState } = useGameStore();
   const controlsRef = useRef<any>(null);
-  const prevGameState = useRef(gameState);
-
-  useEffect(() => {
-    if (gameState === 'city_view' && prevGameState.current !== 'city_view') {
-      if (controlsRef.current) {
-        const cam = controlsRef.current.object;
-        cam.position.set(20, 15, 20);
-        controlsRef.current.target.set(0, 2, 0);
-        controlsRef.current.update();
-      }
-    }
-    prevGameState.current = gameState;
-  }, [gameState]);
 
   useFrame((state) => {
     if (gameState !== 'city_view') {
@@ -81,7 +25,7 @@ function CameraController() {
   return <OrbitControls ref={controlsRef} enableZoom={gameState === 'city_view'} enableRotate={gameState === 'city_view'} enablePan={false} />;
 }
 
-function FallingDebris({ data, texture }: { data: BlockData; texture: THREE.CanvasTexture | null }) {
+function FallingDebris({ data, colorMap, normalMap }: { data: BlockData; colorMap: THREE.Texture | null, normalMap: THREE.Texture | null }) {
   const meshRef = useRef<THREE.Mesh>(null);
   useFrame(() => {
     if (meshRef.current) {
@@ -93,12 +37,12 @@ function FallingDebris({ data, texture }: { data: BlockData; texture: THREE.Canv
   return (
     <mesh ref={meshRef} position={data.position} scale={data.size}>
       <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color="#666666" map={texture} bumpMap={texture} bumpScale={0.03} roughness={1.0} />
+      <meshStandardMaterial map={colorMap} normalMap={normalMap} color="#555555" roughness={0.9} />
     </mesh>
   );
 }
 
-function ActiveBlock({ texture }: { texture: THREE.CanvasTexture | null }) {
+function ActiveBlock({ colorMap, normalMap }: { colorMap: THREE.Texture | null, normalMap: THREE.Texture | null }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const { blocks, actionTrigger, addBlock, addDebris, setGameOver, gameState } = useGameStore();
   
@@ -117,17 +61,19 @@ function ActiveBlock({ texture }: { texture: THREE.CanvasTexture | null }) {
     const currentSize = lastBlock.size[axisIndex];
 
     if (distance > currentSize) {
+      playSound('gameover'); // YIKIM SESİ
       setGameOver();
     } else {
       const isPerfect = distance < 0.15; 
-      
       let newSize: [number, number, number] = [...lastBlock.size];
       let newPos: [number, number, number] = [meshRef.current.position.x, meshRef.current.position.y, meshRef.current.position.z];
 
       if (isPerfect) {
+        playSound('perfect'); // KUSURSUZ KOMBO SESİ
         newPos[axisIndex] = targetPos; 
         addBlock({ position: newPos, size: newSize }, true);
       } else {
+        playSound('drop'); // NORMAL DÜŞME SESİ
         const overhang = distance;
         newSize[axisIndex] = currentSize - overhang;
         const isGreater = currentPos > targetPos;
@@ -164,9 +110,8 @@ function ActiveBlock({ texture }: { texture: THREE.CanvasTexture | null }) {
     <>
       <mesh ref={meshRef} scale={lastBlock.size} castShadow>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#8a8a8a" map={texture} bumpMap={texture} bumpScale={0.04} roughness={1.0} />
+        <meshStandardMaterial map={colorMap} normalMap={normalMap} color="#8a8a8a" roughness={0.9} />
       </mesh>
-      {/* Yeşil Neon Izgara */}
       <mesh position={[lastBlock.position[0], lastBlock.position[1] + 0.502, lastBlock.position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[lastBlock.size[0], lastBlock.size[2], 5, 5]} />
         <meshBasicMaterial color="#00ff66" wireframe transparent opacity={0.5} toneMapped={false} />
@@ -176,13 +121,27 @@ function ActiveBlock({ texture }: { texture: THREE.CanvasTexture | null }) {
 }
 
 export default function MonolithScene() {
-  const { blocks, debris, gameState, cityBuildings } = useGameStore();
-  const concreteTexture = useMemo(() => createConcreteTexture(), []);
+  const { blocks, debris, gameState } = useGameStore();
+  const [textures, setTextures] = useState<{ color: THREE.Texture | null, normal: THREE.Texture | null }>({ color: null, normal: null });
+
+  // PBR Dokularını Yükleme İşlemi
+  useEffect(() => {
+    const loader = new THREE.TextureLoader();
+    // NOT: Eğer indirdiğin dosyalar .png ise aşağıdaki .jpg kısımlarını .png olarak değiştir.
+    loader.load('/textures/concrete_color.jpg', (colorMap) => {
+      colorMap.wrapS = THREE.RepeatWrapping;
+      colorMap.wrapT = THREE.RepeatWrapping;
+      loader.load('/textures/concrete_normal.png', (normalMap) => {
+        normalMap.wrapS = THREE.RepeatWrapping;
+        normalMap.wrapT = THREE.RepeatWrapping;
+        setTextures({ color: colorMap, normal: normalMap });
+      });
+    });
+  }, []);
 
   return (
     <div className="absolute inset-0 z-0 bg-[#0e0f10]">
       <Canvas shadows={{ type: THREE.PCFShadowMap }} dpr={1} camera={{ position: [6, 8, 6], fov: 42 }}>
-        
         <color attach="background" args={['#0e0f10']} />
         <fog attach="fog" args={['#0e0f10', 15, 65]} />
         
@@ -195,8 +154,10 @@ export default function MonolithScene() {
               <mesh key={i} position={block.position} scale={block.size} receiveShadow castShadow>
                 <boxGeometry args={[1, 1, 1]} />
                 <meshStandardMaterial 
+                  map={textures.color} 
+                  normalMap={textures.normal} 
                   color={i === 0 ? "#333333" : "#757575"} 
-                  map={concreteTexture} bumpMap={concreteTexture} bumpScale={0.04} roughness={1.0} 
+                  roughness={0.9} 
                 />
                 {block.isPerfect && (
                   <Edges scale={1.002} threshold={15}>
@@ -205,30 +166,9 @@ export default function MonolithScene() {
                 )}
               </mesh>
             ))}
-            {debris.map((piece, i) => <FallingDebris key={i} data={piece} texture={concreteTexture} />)}
-            <ActiveBlock texture={concreteTexture} />
+            {debris.map((piece, i) => <FallingDebris key={i} data={piece} colorMap={textures.color} normalMap={textures.normal} />)}
+            <ActiveBlock colorMap={textures.color} normalMap={textures.normal} />
           </>
-        )}
-
-        {gameState === 'city_view' && (
-          cityBuildings.map((bldg) => (
-            <group key={bldg.id} position={[bGridX(bldg.gridX), 0, bldg.gridZ]}>
-              {bldg.blocks && bldg.blocks.map((block, idx) => (
-                <mesh key={idx} position={block.position} scale={block.size} castShadow receiveShadow>
-                  <boxGeometry args={[1, 1, 1]} />
-                  <meshStandardMaterial 
-                    color={idx === 0 ? "#1a1a1a" : "#666666"} 
-                    map={concreteTexture} bumpMap={concreteTexture} bumpScale={0.04} roughness={1.0}
-                  />
-                  {block.isPerfect && (
-                    <Edges scale={1.002} threshold={15}>
-                      <lineBasicMaterial color="#ffb800" toneMapped={false} opacity={0.6} transparent />
-                    </Edges>
-                  )}
-                </mesh>
-              ))}
-            </group>
-          ))
         )}
 
         <gridHelper args={[150, 75, '#1e2022', '#0e0f10']} position={[0, -0.49, 0]} />
@@ -246,8 +186,4 @@ export default function MonolithScene() {
       </Canvas>
     </div>
   );
-}
-
-function bGridX(x: number) {
-  return x === 0 ? 0.1 : x;
 }
