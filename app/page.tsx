@@ -4,8 +4,11 @@ import MonolithScene from '@/components/MonolithScene';
 import { useGameStore, FloatingTextData } from '@/store/useGameStore';
 import { initAudio } from '@/utils/soundEngine';
 
-// Uçuşan Yazı Bileşeni
-function FloatingTextItem({ data }: { data: FloatingTextData }) {
+interface FloatingTextItemProps {
+  data: FloatingTextData;
+}
+
+function FloatingTextItem({ data }: FloatingTextItemProps) {
   const removeFloatingText = useGameStore(state => state.removeFloatingText);
 
   useEffect(() => {
@@ -30,7 +33,6 @@ export default function Home() {
     initGameData();
   }, [initGameData]);
 
-  // Ekrana tıklama yönetimi
   const handleInteraction = (e?: React.PointerEvent) => {
     if (e && (e.target as HTMLElement).closest('button.ui-btn')) return;
 
@@ -43,12 +45,10 @@ export default function Home() {
   };
 
   return (
-    // DÜZELTME 1: h-screen yerine h-[100dvh] kullanarak telefon ekranından taşmayı engelledik.
     <main 
       className="relative w-full h-[100dvh] bg-[#0a0a0a] overflow-hidden font-sans select-none touch-none"
       onPointerDown={handleInteraction} 
     >
-      {/* Özel Animasyonlar */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes floatUp {
           0% { opacity: 0; transform: translate(-50%, 0) scale(0.9); }
@@ -61,13 +61,9 @@ export default function Home() {
         }
       `}} />
 
-      {/* ARKA PLAN 3D SAHNE */}
       <MonolithScene />
 
-      {/* --- ARAYÜZ (UI) KATMANI --- */}
       <div className="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between">
-        
-        {/* ÜST BAR */}
         <header className="w-full p-6 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent">
           <div className="flex gap-5 items-center">
             <button className="ui-btn w-12 h-12 bg-gradient-to-b from-neutral-700 to-neutral-800 border border-neutral-600 rounded-md flex items-center justify-center shadow-lg pointer-events-auto hover:bg-neutral-600 transition-colors">
@@ -102,7 +98,6 @@ export default function Home() {
           </div>
         </header>
 
-        {/* ORTA EKRAN: Uçuşan Yazılar, Başlangıç ve Oyun Bitiş Ekranları */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
           {gameState === 'playing' && floatingTexts.map(item => (
              <FloatingTextItem key={item.id} data={item} />
@@ -120,7 +115,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* DÜZELTME 2: Oyun Bitti (Game Over) Ekranı Eklendi */}
           {gameState === 'gameover' && (
             <div className="z-50 flex flex-col items-center justify-center p-8 bg-black/80 backdrop-blur-md border border-neutral-800 rounded-xl shadow-[0_0_50px_rgba(0,0,0,1)] pointer-events-auto">
               <h2 className="text-red-500/90 text-3xl md:text-5xl font-black tracking-[0.3em] uppercase mb-2">Structure Failed</h2>
@@ -139,7 +133,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* ALT PANEL */}
         <div className="w-full flex flex-col pointer-events-none">
           <div className="w-full bg-gradient-to-b from-neutral-800 to-neutral-900 border-t border-b border-neutral-700/50 py-1.5 text-center">
             <span className="text-[10px] text-neutral-400 tracking-[0.3em] uppercase font-semibold">The Sanctuary</span>
@@ -151,7 +144,6 @@ export default function Home() {
             </div>
 
             <div className="w-full px-4 md:px-6 flex justify-center md:justify-between items-center pointer-events-auto gap-4">
-              
               <button className="ui-btn hidden md:flex px-5 py-3.5 bg-gradient-to-b from-neutral-700 to-neutral-800 border border-neutral-600 rounded flex-1 max-w-[120px] shadow-lg">
                 <span className="text-[10px] text-neutral-300 tracking-[0.2em] font-semibold">UPGRADES</span>
               </button>
@@ -175,11 +167,9 @@ export default function Home() {
               <button className="ui-btn hidden md:flex px-5 py-3.5 bg-gradient-to-b from-neutral-700 to-neutral-800 border border-neutral-600 rounded flex-1 max-w-[120px] shadow-lg">
                 <span className="text-[10px] text-neutral-300 tracking-[0.2em] font-semibold">LEADERBOARD</span>
               </button>
-              
             </div>
           </div>
         </div>
-
       </div>
     </main>
   );

@@ -25,7 +25,13 @@ function CameraController() {
   return <OrbitControls ref={controlsRef} enableZoom={gameState === 'city_view'} enableRotate={gameState === 'city_view'} enablePan={false} />;
 }
 
-function FallingDebris({ data, colorMap, normalMap }: { data: BlockData; colorMap: THREE.Texture | null, normalMap: THREE.Texture | null }) {
+interface DebrisProps {
+  data: BlockData;
+  colorMap?: THREE.Texture;
+  normalMap?: THREE.Texture;
+}
+
+function FallingDebris({ data, colorMap, normalMap }: DebrisProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   useFrame(() => {
     if (meshRef.current) {
@@ -42,7 +48,12 @@ function FallingDebris({ data, colorMap, normalMap }: { data: BlockData; colorMa
   );
 }
 
-function ActiveBlock({ colorMap, normalMap }: { colorMap: THREE.Texture | null, normalMap: THREE.Texture | null }) {
+interface ActiveBlockProps {
+  colorMap?: THREE.Texture;
+  normalMap?: THREE.Texture;
+}
+
+function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const { blocks, actionTrigger, addBlock, addDebris, setGameOver, gameState } = useGameStore();
   
@@ -61,7 +72,7 @@ function ActiveBlock({ colorMap, normalMap }: { colorMap: THREE.Texture | null, 
     const currentSize = lastBlock.size[axisIndex];
 
     if (distance > currentSize) {
-      playSound('gameover'); // YIKIM SESİ
+      playSound('gameover'); 
       setGameOver();
     } else {
       const isPerfect = distance < 0.15; 
@@ -69,11 +80,11 @@ function ActiveBlock({ colorMap, normalMap }: { colorMap: THREE.Texture | null, 
       let newPos: [number, number, number] = [meshRef.current.position.x, meshRef.current.position.y, meshRef.current.position.z];
 
       if (isPerfect) {
-        playSound('perfect'); // KUSURSUZ KOMBO SESİ
+        playSound('perfect'); 
         newPos[axisIndex] = targetPos; 
         addBlock({ position: newPos, size: newSize }, true);
       } else {
-        playSound('drop'); // NORMAL DÜŞME SESİ
+        playSound('drop'); 
         const overhang = distance;
         newSize[axisIndex] = currentSize - overhang;
         const isGreater = currentPos > targetPos;
@@ -122,12 +133,14 @@ function ActiveBlock({ colorMap, normalMap }: { colorMap: THREE.Texture | null, 
 
 export default function MonolithScene() {
   const { blocks, debris, gameState } = useGameStore();
-  const [textures, setTextures] = useState<{ color: THREE.Texture | null, normal: THREE.Texture | null }>({ color: null, normal: null });
+  const [textures, setTextures] = useState<{ color?: THREE.Texture, normal?: THREE.Texture }>({});
 
-  // PBR Dokularını Yükleme İşlemi
   useEffect(() => {
     const loader = new THREE.TextureLoader();
-    // NOT: Eğer indirdiğin dosyalar .png ise aşağıdaki .jpg kısımlarını .png olarak değiştir.
+    
+    // !!! ÖNEMLİ KONTROL NOKTASI !!!
+    // Eğer indirdiğin dosyaların uzantısı büyük harfle .PNG veya .JPG ise, 
+    // aşağıdaki uzantıları klasördekiyle birebir aynı yap (Örn: '/textures/concrete_color.png')
     loader.load('/textures/concrete_color.jpg', (colorMap) => {
       colorMap.wrapS = THREE.RepeatWrapping;
       colorMap.wrapT = THREE.RepeatWrapping;
@@ -135,8 +148,8 @@ export default function MonolithScene() {
         normalMap.wrapS = THREE.RepeatWrapping;
         normalMap.wrapT = THREE.RepeatWrapping;
         setTextures({ color: colorMap, normal: normalMap });
-      });
-    });
+      }, undefined, (err) => console.error("Normal map yüklenemedi:", err));
+    }, undefined, (err) => console.error("Color map yüklenemedi:", err));
   }, []);
 
   return (
