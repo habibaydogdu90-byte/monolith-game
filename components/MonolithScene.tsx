@@ -7,22 +7,91 @@ import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { useGameStore, BlockData } from '@/store/useGameStore';
 import { playSound } from '@/utils/soundEngine';
 
+// --- 1. YENİ: KAMERA SARSINTISI SİSTEMİ ---
 function CameraController() {
-  const { blocks, gameState } = useGameStore();
+  const { blocks, gameState, actionTrigger } = useGameStore();
   const controlsRef = useRef<any>(null);
+  const [shake, setShake] = useState(0);
+
+  // Blok düştüğünde sarsıntıyı tetikle
+  useEffect(() => {
+    if (actionTrigger > 0 && gameState === 'playing') {
+      const isPerfect = blocks[blocks.length - 1]?.isPerfect;
+      // Hata yapıp bloğu kestiğinde çok daha şiddetli titrer (0.4), kusursuzda hafif titrer (0.15)
+      setShake(isPerfect ? 0.15 : 0.4); 
+    }
+  }, [actionTrigger, gameState, blocks]);
 
   useFrame((state) => {
     if (gameState !== 'city_view') {
       const targetY = blocks.length > 3 ? blocks.length - 2 : 0;
-      state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY + 8, 0.05);
+
+      // Kameranın yumuşak takibi
+      let camY = THREE.MathUtils.lerp(state.camera.position.y, targetY + 8, 0.05);
+      let targetCenterY = THREE.MathUtils.lerp(controlsRef.current?.target.y || 0, targetY, 0.05);
+
+      // Sarsıntı Matematiği
+      let currentShakeX = 0;
+      let currentShakeZ = 0;
+
+      if (shake > 0) {
+        currentShakeX = (Math.random() - 0.5) * shake;
+        currentShakeZ = (Math.random() - 0.5) * shake;
+        setShake((s) => Math.max(0, s - 0.03)); // Titremeyi yavaşça söndür
+      }
+
+      state.camera.position.y = camY;
+      state.camera.position.x += currentShakeX;
+      state.camera.position.z += currentShakeZ;
+
       if (controlsRef.current) {
-        controlsRef.current.target.y = THREE.MathUtils.lerp(controlsRef.current.target.y, targetY, 0.05);
+        controlsRef.current.target.y = targetCenterY;
         controlsRef.current.update();
       }
+
+      // Kameranın uzaya uçmaması için titremeyi frame sonunda geri al
+      state.camera.position.x -= currentShakeX;
+      state.camera.position.z -= currentShakeZ;
     }
   });
 
   return <OrbitControls ref={controlsRef} enableZoom={gameState === 'city_view'} enableRotate={gameState === 'city_view'} enablePan={false} />;
+}
+
+// --- 2. YENİ: DARBE IŞIĞI (IMPACT FLASH) ---
+function ImpactEffects() {
+  const { blocks, actionTrigger, gameState } = useGameStore();
+  const lightRef = useRef<THREE.PointLight>(null);
+  const [intensity, setIntensity] = useState(0);
+
+  useEffect(() => {
+    if (actionTrigger > 0 && gameState === 'playing') {
+      setIntensity(10); // Işığı aniden patlat
+    }
+  }, [actionTrigger, gameState]);
+
+  useFrame(() => {
+    if (intensity > 0) {
+      setIntensity((prev) => Math.max(0, prev - 0.6)); // Çok hızlı söndür (Flaş etkisi)
+      if (lightRef.current) {
+         lightRef.current.intensity = intensity;
+      }
+    }
+  });
+
+  if (blocks.length === 0) return null;
+  const lastBlock = blocks[blocks.length - 1];
+  const isPerfect = lastBlock.isPerfect;
+
+  return (
+    <pointLight
+      ref={lightRef}
+      position={[lastBlock.position[0], lastBlock.position[1] - 0.5, lastBlock.position[2]]}
+      distance={8}
+      color={isPerfect ? "#ffb800" : "#ffffff"}
+      intensity={0}
+    />
+  );
 }
 
 interface DebrisProps {
@@ -157,12 +226,12 @@ export default function MonolithScene() {
         
         <color attach="background" args={['#070809']} />
         <fog attach="fog" args={['#070809', 15, 55]} />
-        
-        {/* Çevresel Gece Aydınlatması */}
         <Environment preset="night" environmentIntensity={0.6} />
-        
         <ambientLight intensity={0.1} />
         <directionalLight castShadow position={[12, 25, 8]} intensity={2.5} shadow-mapSize={[2048, 2048]} shadow-bias={-0.0005} />
+
+        {/* Patlama Efektini Sahneye Ekledik */}
+        <ImpactEffects />
 
         {gameState !== 'city_view' && (
           <>
@@ -176,7 +245,6 @@ export default function MonolithScene() {
                   roughness={0.8} 
                   metalness={0.2}
                 />
-                {/* Patlayan Altın Işık */}
                 {block.isPerfect && (
                   <Edges scale={1.002} threshold={15}>
                     <lineBasicMaterial color={[10, 8, 0]} toneMapped={false} />
@@ -197,7 +265,6 @@ export default function MonolithScene() {
 
         <CameraController />
 
-        {/* Sorunlu lens efektlerinden arındırılmış sağlam Post Processing */}
         <EffectComposer multisampling={0}>
           <Bloom luminanceThreshold={1} luminanceSmoothing={0.9} intensity={2.5} mipmapBlur />
           <Vignette eskil={false} offset={0.35} darkness={1.3} />
