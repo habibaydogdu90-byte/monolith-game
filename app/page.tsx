@@ -1,5 +1,5 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import MonolithScene from '@/components/MonolithScene';
 import { useGameStore, FloatingTextData } from '@/store/useGameStore';
 import { initAudio } from '@/utils/soundEngine';
@@ -19,7 +19,7 @@ function FloatingTextItem({ data }: FloatingTextItemProps) {
   return (
     <div 
       className={`absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2 font-medium tracking-[0.3em] uppercase drop-shadow-[0_0_15px_rgba(0,0,0,1)] pointer-events-none custom-float-anim whitespace-nowrap
-        ${data.isPerfect ? 'text-yellow-400 text-2xl' : 'text-gray-300 text-lg'}`}
+        ${data.isPerfect ? 'text-yellow-400 text-2xl font-bold' : 'text-gray-300 text-lg'}`}
     >
       {data.text}
     </div>
@@ -27,9 +27,13 @@ function FloatingTextItem({ data }: FloatingTextItemProps) {
 }
 
 export default function Home() {
-  const { score, combo, gameState, floatingTexts, startGame, triggerDrop, initGameData } = useGameStore();
+  // YENİ: credits ve highScore mağazadan çekiliyor
+  const { score, combo, gameState, floatingTexts, startGame, triggerDrop, initGameData, credits, highScore } = useGameStore();
+  const [mounted, setMounted] = useState(false);
 
+  // Next.js Hydration hatasını önlemek için kalıcı verileri client yüklendikten sonra gösteriyoruz
   useEffect(() => {
+    setMounted(true);
     initGameData();
   }, [initGameData]);
 
@@ -73,12 +77,12 @@ export default function Home() {
               </svg>
             </button>
             
-            <div className="flex flex-col">
-              <span className="text-[10px] text-neutral-400 tracking-[0.2em] mb-1">PROGRESS</span>
-              <div className="w-32 h-2.5 bg-neutral-900 border border-neutral-700 rounded-full overflow-hidden shadow-inner">
-                <div className="w-[65%] h-full bg-gradient-to-r from-yellow-700 via-yellow-400 to-yellow-200"></div>
+            {mounted && highScore > 0 && (
+              <div className="flex flex-col hidden sm:flex">
+                <span className="text-[10px] text-neutral-400 tracking-[0.2em] mb-1">BEST RECORD</span>
+                <span className="text-sm text-yellow-500/90 font-bold tracking-wider">{highScore.toLocaleString()}</span>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="flex gap-8 text-right pr-4">
@@ -92,7 +96,10 @@ export default function Home() {
                 <svg className="w-4 h-4 text-cyan-300" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M2.73 7.73a1 1 0 01-.15-1.12l4-7a1 1 0 01.8-.45h5.24a1 1 0 01.8.45l4 7a1 1 0 01-.15 1.12l-7 8a1 1 0 01-1.5 0l-7-8z"></path>
                 </svg>
-                <span className="text-xl font-light text-cyan-50 tracking-wider">1,240</span>
+                {/* GERÇEK KREDİ MİKTARI */}
+                <span className="text-xl font-light text-cyan-50 tracking-wider">
+                  {mounted ? credits.toLocaleString() : '...'}
+                </span>
               </div>
             </div>
           </div>
@@ -105,7 +112,7 @@ export default function Home() {
           
           {gameState === 'playing' && combo > 1 && (
             <div className="absolute top-[60%] text-yellow-400/90 text-sm font-bold tracking-[0.3em] uppercase drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]">
-              {combo}x PERFECT COMBO
+              {combo}x COMBO
             </div>
           )}
 
@@ -116,18 +123,27 @@ export default function Home() {
           )}
 
           {gameState === 'gameover' && (
-            <div className="z-50 flex flex-col items-center justify-center p-8 bg-black/80 backdrop-blur-md border border-neutral-800 rounded-xl shadow-[0_0_50px_rgba(0,0,0,1)] pointer-events-auto">
-              <h2 className="text-red-500/90 text-3xl md:text-5xl font-black tracking-[0.3em] uppercase mb-2">Structure Failed</h2>
-              <p className="text-neutral-400 text-sm md:text-base tracking-[0.2em] mb-8 uppercase">Final Score: <span className="text-white font-bold">{score}</span></p>
+            <div className="z-50 flex flex-col items-center justify-center p-8 bg-black/80 backdrop-blur-md border border-neutral-800 rounded-xl shadow-[0_0_50px_rgba(0,0,0,1)] pointer-events-auto min-w-[300px]">
+              <h2 className="text-red-500/90 text-3xl font-black tracking-[0.3em] uppercase mb-4">Structure Failed</h2>
+              
+              <div className="flex w-full justify-between items-center mb-2 px-4 py-2 bg-white/5 rounded">
+                <span className="text-neutral-400 text-xs tracking-[0.2em] uppercase">Score</span>
+                <span className="text-white text-xl font-bold">{score.toLocaleString()}</span>
+              </div>
+              
+              <div className="flex w-full justify-between items-center mb-8 px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded">
+                <span className="text-yellow-500/80 text-xs tracking-[0.2em] uppercase">Best</span>
+                <span className="text-yellow-400 text-xl font-bold">{Math.max(score, highScore).toLocaleString()}</span>
+              </div>
               
               <button 
                 onPointerDown={(e) => {
                   e.stopPropagation();
                   startGame();
                 }}
-                className="ui-btn px-8 py-4 bg-gradient-to-b from-yellow-600 to-yellow-800 border border-yellow-500/50 rounded-md text-black font-bold tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:scale-105 active:scale-95 transition-all"
+                className="ui-btn px-8 py-4 w-full bg-gradient-to-b from-neutral-200 to-neutral-400 rounded-md text-black font-black tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95 transition-all"
               >
-                Rebuild
+                Try Again
               </button>
             </div>
           )}
@@ -144,8 +160,8 @@ export default function Home() {
             </div>
 
             <div className="w-full px-4 md:px-6 flex justify-center md:justify-between items-center pointer-events-auto gap-4">
-              <button className="ui-btn hidden md:flex px-5 py-3.5 bg-gradient-to-b from-neutral-700 to-neutral-800 border border-neutral-600 rounded flex-1 max-w-[120px] shadow-lg">
-                <span className="text-[10px] text-neutral-300 tracking-[0.2em] font-semibold">UPGRADES</span>
+              <button className="ui-btn hidden md:flex px-5 py-3.5 bg-gradient-to-b from-neutral-700 to-neutral-800 border border-neutral-600 rounded flex-1 max-w-[120px] shadow-lg hover:bg-neutral-700 active:scale-95 transition-all">
+                <span className="text-[10px] text-cyan-400 tracking-[0.2em] font-bold">UPGRADES</span>
               </button>
 
               <button 
@@ -164,8 +180,8 @@ export default function Home() {
                 </div>
               </button>
 
-              <button className="ui-btn hidden md:flex px-5 py-3.5 bg-gradient-to-b from-neutral-700 to-neutral-800 border border-neutral-600 rounded flex-1 max-w-[120px] shadow-lg">
-                <span className="text-[10px] text-neutral-300 tracking-[0.2em] font-semibold">LEADERBOARD</span>
+              <button className="ui-btn hidden md:flex px-5 py-3.5 bg-gradient-to-b from-neutral-700 to-neutral-800 border border-neutral-600 rounded flex-1 max-w-[120px] shadow-lg hover:bg-neutral-700 active:scale-95 transition-all">
+                <span className="text-[10px] text-yellow-500 tracking-[0.2em] font-bold">LEADERBOARD</span>
               </button>
             </div>
           </div>
