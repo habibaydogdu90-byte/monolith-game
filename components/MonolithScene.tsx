@@ -1,7 +1,7 @@
 'use client';
 import { useRef, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Edges } from '@react-three/drei';
+import { OrbitControls, Edges, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { useGameStore, BlockData } from '@/store/useGameStore';
@@ -138,14 +138,12 @@ export default function MonolithScene() {
   useEffect(() => {
     const loader = new THREE.TextureLoader();
     
-    // Yükleme işlemini sessiz ve pürüzsüz hale getirdik
     loader.load('/textures/concrete_color.jpg', (colorMap) => {
       colorMap.wrapS = THREE.RepeatWrapping;
       colorMap.wrapT = THREE.RepeatWrapping;
       setTextures(prev => ({ ...prev, color: colorMap }));
     });
 
-    // Uzantı .png olarak güncellendi!
     loader.load('/textures/concrete_normal.png', (normalMap) => {
       normalMap.wrapS = THREE.RepeatWrapping;
       normalMap.wrapT = THREE.RepeatWrapping;
@@ -154,13 +152,17 @@ export default function MonolithScene() {
   }, []);
 
   return (
-    <div className="absolute inset-0 z-0 bg-[#0e0f10]">
-      <Canvas shadows={{ type: THREE.PCFShadowMap }} dpr={1} camera={{ position: [6, 8, 6], fov: 42 }}>
-        <color attach="background" args={['#0e0f10']} />
-        <fog attach="fog" args={['#0e0f10', 15, 65]} />
+    <div className="absolute inset-0 z-0 bg-[#070809]">
+      <Canvas shadows={{ type: THREE.PCFShadowMap }} dpr={[1, 2]} camera={{ position: [6, 8, 6], fov: 42 }}>
         
-        <ambientLight intensity={0.4} />
-        <directionalLight castShadow position={[12, 25, 8]} intensity={1.8} shadow-mapSize={[1024, 1024]} />
+        <color attach="background" args={['#070809']} />
+        <fog attach="fog" args={['#070809', 15, 55]} />
+        
+        {/* Çevresel Gece Aydınlatması */}
+        <Environment preset="night" environmentIntensity={0.6} />
+        
+        <ambientLight intensity={0.1} />
+        <directionalLight castShadow position={[12, 25, 8]} intensity={2.5} shadow-mapSize={[2048, 2048]} shadow-bias={-0.0005} />
 
         {gameState !== 'city_view' && (
           <>
@@ -170,12 +172,14 @@ export default function MonolithScene() {
                 <meshStandardMaterial 
                   map={textures.color} 
                   normalMap={textures.normal} 
-                  color={i === 0 ? "#333333" : "#757575"} 
-                  roughness={0.9} 
+                  color={i === 0 ? "#222222" : "#666666"} 
+                  roughness={0.8} 
+                  metalness={0.2}
                 />
+                {/* Patlayan Altın Işık */}
                 {block.isPerfect && (
                   <Edges scale={1.002} threshold={15}>
-                    <lineBasicMaterial color="#ffb800" toneMapped={false} />
+                    <lineBasicMaterial color={[10, 8, 0]} toneMapped={false} />
                   </Edges>
                 )}
               </mesh>
@@ -185,17 +189,18 @@ export default function MonolithScene() {
           </>
         )}
 
-        <gridHelper args={[150, 75, '#1e2022', '#0e0f10']} position={[0, -0.49, 0]} />
+        <gridHelper args={[150, 75, '#151719', '#070809']} position={[0, -0.49, 0]} />
         <mesh receiveShadow position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[300, 300]} />
-          <meshStandardMaterial color="#0e0f10" roughness={1} />
+          <meshStandardMaterial color="#070809" roughness={1} />
         </mesh>
 
         <CameraController />
 
+        {/* Sorunlu lens efektlerinden arındırılmış sağlam Post Processing */}
         <EffectComposer multisampling={0}>
-          <Bloom luminanceThreshold={0.4} luminanceSmoothing={0.9} intensity={2.2} mipmapBlur />
-          <Vignette eskil={false} offset={0.3} darkness={1.2} />
+          <Bloom luminanceThreshold={1} luminanceSmoothing={0.9} intensity={2.5} mipmapBlur />
+          <Vignette eskil={false} offset={0.35} darkness={1.3} />
         </EffectComposer>
       </Canvas>
     </div>
