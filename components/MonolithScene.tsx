@@ -116,12 +116,19 @@ interface ActiveBlockProps {
 
 function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const { blocks, actionTrigger, addBlock, addDebris, setGameOver, gameState } = useGameStore();
+  // YENİ: combo değerini mağazadan alıyoruz
+  const { blocks, actionTrigger, addBlock, addDebris, setGameOver, gameState, combo } = useGameStore();
   
   const lastBlock = blocks[blocks.length - 1];
   const level = blocks.length;
   const axis = level % 2 === 0 ? 'x' : 'z'; 
-  const speed = 2.0 + Math.min(level * 0.12, 3.5); 
+  
+  // YENİ: Dinamik Ritim Sistemi (Ezber Bozan Hız)
+  const baseSpeed = 2.0;
+  const speedMultiplier = 1 + Math.min(level * 0.06, 1.5);
+  // Her 4 blokta bir sinüs dalgasıyla hız aniden artar veya azalır
+  const rhythmVariation = Math.sin(level * Math.PI / 4) * 0.6; 
+  const speed = baseSpeed * speedMultiplier + rhythmVariation;
 
   useEffect(() => {
     if (actionTrigger === 0 || gameState !== 'playing' || !meshRef.current) return;
@@ -143,7 +150,18 @@ function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
       if (isPerfect) {
         playSound('perfect'); 
         newPos[axisIndex] = targetPos; 
-        addBlock({ position: newPos, size: newSize }, true);
+        
+        // --- YENİ: 3 COMBO RESTORASYON ÖDÜLÜ ---
+        let isGrowth = false;
+        // Eğer combo 2 ise (bu vuruşla 3 olacak) ve blok orijinal boyutundan (3) küçükse
+        if (combo >= 2 && (newSize[0] < 3 || newSize[2] < 3)) {
+          isGrowth = true;
+          // Bloğu X ve Z ekseninde 0.4 birim büyüt (Maksimum 3 sınırını aşmadan)
+          newSize[0] = Math.min(3, newSize[0] + 0.4);
+          newSize[2] = Math.min(3, newSize[2] + 0.4);
+        }
+        
+        addBlock({ position: newPos, size: newSize }, true, isGrowth);
       } else {
         playSound('drop'); 
         const overhang = distance;
@@ -218,8 +236,6 @@ export default function MonolithScene() {
         
         <color attach="background" args={['#101112']} />
         <fog attach="fog" args={['#101112', 20, 70]} />
-        
-        {/* Çevresel aydınlatmayı Gece'den Şehir'e çevirdik */}
         <Environment preset="city" environmentIntensity={0.8} />
         
         <ambientLight intensity={0.3} />
