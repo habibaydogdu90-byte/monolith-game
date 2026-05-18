@@ -7,37 +7,31 @@ import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { useGameStore, BlockData } from '@/store/useGameStore';
 import { playSound } from '@/utils/soundEngine';
 
-// --- 1. YENİ: KAMERA SARSINTISI SİSTEMİ ---
 function CameraController() {
   const { blocks, gameState, actionTrigger } = useGameStore();
   const controlsRef = useRef<any>(null);
   const [shake, setShake] = useState(0);
 
-  // Blok düştüğünde sarsıntıyı tetikle
   useEffect(() => {
     if (actionTrigger > 0 && gameState === 'playing') {
       const isPerfect = blocks[blocks.length - 1]?.isPerfect;
-      // Hata yapıp bloğu kestiğinde çok daha şiddetli titrer (0.4), kusursuzda hafif titrer (0.15)
-      setShake(isPerfect ? 0.15 : 0.4); 
+      setShake(isPerfect ? 0.3 : 0.8); 
     }
   }, [actionTrigger, gameState, blocks]);
 
   useFrame((state) => {
     if (gameState !== 'city_view') {
       const targetY = blocks.length > 3 ? blocks.length - 2 : 0;
-
-      // Kameranın yumuşak takibi
       let camY = THREE.MathUtils.lerp(state.camera.position.y, targetY + 8, 0.05);
       let targetCenterY = THREE.MathUtils.lerp(controlsRef.current?.target.y || 0, targetY, 0.05);
 
-      // Sarsıntı Matematiği
       let currentShakeX = 0;
       let currentShakeZ = 0;
 
       if (shake > 0) {
         currentShakeX = (Math.random() - 0.5) * shake;
         currentShakeZ = (Math.random() - 0.5) * shake;
-        setShake((s) => Math.max(0, s - 0.03)); // Titremeyi yavaşça söndür
+        setShake((s) => Math.max(0, s - 0.015)); 
       }
 
       state.camera.position.y = camY;
@@ -49,7 +43,6 @@ function CameraController() {
         controlsRef.current.update();
       }
 
-      // Kameranın uzaya uçmaması için titremeyi frame sonunda geri al
       state.camera.position.x -= currentShakeX;
       state.camera.position.z -= currentShakeZ;
     }
@@ -58,7 +51,6 @@ function CameraController() {
   return <OrbitControls ref={controlsRef} enableZoom={gameState === 'city_view'} enableRotate={gameState === 'city_view'} enablePan={false} />;
 }
 
-// --- 2. YENİ: DARBE IŞIĞI (IMPACT FLASH) ---
 function ImpactEffects() {
   const { blocks, actionTrigger, gameState } = useGameStore();
   const lightRef = useRef<THREE.PointLight>(null);
@@ -66,13 +58,13 @@ function ImpactEffects() {
 
   useEffect(() => {
     if (actionTrigger > 0 && gameState === 'playing') {
-      setIntensity(10); // Işığı aniden patlat
+      setIntensity(50); 
     }
   }, [actionTrigger, gameState]);
 
   useFrame(() => {
     if (intensity > 0) {
-      setIntensity((prev) => Math.max(0, prev - 0.6)); // Çok hızlı söndür (Flaş etkisi)
+      setIntensity((prev) => Math.max(0, prev - 0.3)); 
       if (lightRef.current) {
          lightRef.current.intensity = intensity;
       }
@@ -86,8 +78,8 @@ function ImpactEffects() {
   return (
     <pointLight
       ref={lightRef}
-      position={[lastBlock.position[0], lastBlock.position[1] - 0.5, lastBlock.position[2]]}
-      distance={8}
+      position={[lastBlock.position[0], lastBlock.position[1] - 0.2, lastBlock.position[2]]}
+      distance={15}
       color={isPerfect ? "#ffb800" : "#ffffff"}
       intensity={0}
     />
@@ -112,7 +104,7 @@ function FallingDebris({ data, colorMap, normalMap }: DebrisProps) {
   return (
     <mesh ref={meshRef} position={data.position} scale={data.size}>
       <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial map={colorMap} normalMap={normalMap} color="#555555" roughness={0.9} />
+      <meshStandardMaterial map={colorMap} normalMap={normalMap} color="#666666" roughness={0.8} />
     </mesh>
   );
 }
@@ -190,7 +182,7 @@ function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
     <>
       <mesh ref={meshRef} scale={lastBlock.size} castShadow>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial map={colorMap} normalMap={normalMap} color="#8a8a8a" roughness={0.9} />
+        <meshStandardMaterial map={colorMap} normalMap={normalMap} color="#aaaaaa" roughness={0.6} />
       </mesh>
       <mesh position={[lastBlock.position[0], lastBlock.position[1] + 0.502, lastBlock.position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[lastBlock.size[0], lastBlock.size[2], 5, 5]} />
@@ -221,16 +213,18 @@ export default function MonolithScene() {
   }, []);
 
   return (
-    <div className="absolute inset-0 z-0 bg-[#070809]">
+    <div className="absolute inset-0 z-0 bg-[#101112]">
       <Canvas shadows={{ type: THREE.PCFShadowMap }} dpr={[1, 2]} camera={{ position: [6, 8, 6], fov: 42 }}>
         
-        <color attach="background" args={['#070809']} />
-        <fog attach="fog" args={['#070809', 15, 55]} />
-        <Environment preset="night" environmentIntensity={0.6} />
-        <ambientLight intensity={0.1} />
-        <directionalLight castShadow position={[12, 25, 8]} intensity={2.5} shadow-mapSize={[2048, 2048]} shadow-bias={-0.0005} />
+        <color attach="background" args={['#101112']} />
+        <fog attach="fog" args={['#101112', 20, 70]} />
+        
+        {/* Çevresel aydınlatmayı Gece'den Şehir'e çevirdik */}
+        <Environment preset="city" environmentIntensity={0.8} />
+        
+        <ambientLight intensity={0.3} />
+        <directionalLight castShadow position={[12, 25, 8]} intensity={4} color="#ffeebb" shadow-mapSize={[2048, 2048]} shadow-bias={-0.0005} />
 
-        {/* Patlama Efektini Sahneye Ekledik */}
         <ImpactEffects />
 
         {gameState !== 'city_view' && (
@@ -241,13 +235,13 @@ export default function MonolithScene() {
                 <meshStandardMaterial 
                   map={textures.color} 
                   normalMap={textures.normal} 
-                  color={i === 0 ? "#222222" : "#666666"} 
-                  roughness={0.8} 
+                  color={i === 0 ? "#444444" : "#999999"} 
+                  roughness={0.7} 
                   metalness={0.2}
                 />
                 {block.isPerfect && (
                   <Edges scale={1.002} threshold={15}>
-                    <lineBasicMaterial color={[10, 8, 0]} toneMapped={false} />
+                    <lineBasicMaterial color={[15, 10, 0]} toneMapped={false} />
                   </Edges>
                 )}
               </mesh>
@@ -257,17 +251,17 @@ export default function MonolithScene() {
           </>
         )}
 
-        <gridHelper args={[150, 75, '#151719', '#070809']} position={[0, -0.49, 0]} />
+        <gridHelper args={[150, 75, '#1e2022', '#101112']} position={[0, -0.49, 0]} />
         <mesh receiveShadow position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[300, 300]} />
-          <meshStandardMaterial color="#070809" roughness={1} />
+          <meshStandardMaterial color="#101112" roughness={1} />
         </mesh>
 
         <CameraController />
 
         <EffectComposer multisampling={0}>
-          <Bloom luminanceThreshold={1} luminanceSmoothing={0.9} intensity={2.5} mipmapBlur />
-          <Vignette eskil={false} offset={0.35} darkness={1.3} />
+          <Bloom luminanceThreshold={0.5} luminanceSmoothing={0.9} intensity={3.5} mipmapBlur />
+          <Vignette eskil={false} offset={0.3} darkness={1.2} />
         </EffectComposer>
       </Canvas>
     </div>
