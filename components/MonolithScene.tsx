@@ -138,18 +138,19 @@ export default function MonolithScene() {
   useEffect(() => {
     const loader = new THREE.TextureLoader();
     
-    // !!! ÖNEMLİ KONTROL NOKTASI !!!
-    // Eğer indirdiğin dosyaların uzantısı büyük harfle .PNG veya .JPG ise, 
-    // aşağıdaki uzantıları klasördekiyle birebir aynı yap (Örn: '/textures/concrete_color.png')
+    // Yükleme işlemini sessiz ve pürüzsüz hale getirdik
     loader.load('/textures/concrete_color.jpg', (colorMap) => {
       colorMap.wrapS = THREE.RepeatWrapping;
       colorMap.wrapT = THREE.RepeatWrapping;
-      loader.load('/textures/concrete_normal.png', (normalMap) => {
-        normalMap.wrapS = THREE.RepeatWrapping;
-        normalMap.wrapT = THREE.RepeatWrapping;
-        setTextures({ color: colorMap, normal: normalMap });
-      }, undefined, (err) => console.error("Normal map yüklenemedi:", err));
-    }, undefined, (err) => console.error("Color map yüklenemedi:", err));
+      setTextures(prev => ({ ...prev, color: colorMap }));
+    });
+
+    // Uzantı .png olarak güncellendi!
+    loader.load('/textures/concrete_normal.png', (normalMap) => {
+      normalMap.wrapS = THREE.RepeatWrapping;
+      normalMap.wrapT = THREE.RepeatWrapping;
+      setTextures(prev => ({ ...prev, normal: normalMap }));
+    });
   }, []);
 
   return (
