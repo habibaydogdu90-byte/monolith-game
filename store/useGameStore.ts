@@ -21,10 +21,12 @@ interface GameState {
   combo: number;
   actionTrigger: number;
   floatingTexts: FloatingTextData[];
-  
-  // YENİ EKLENENLER: Kalıcı Ekonomi ve Rekor
   highScore: number;
   credits: number;
+  
+  // MAĞAZA DEVLET DEĞİŞKENLERİ
+  currentSkin: string;
+  unlockedSkins: string[];
   
   startGame: () => void;
   triggerDrop: () => void;
@@ -33,13 +35,17 @@ interface GameState {
   setGameOver: () => void;
   removeFloatingText: (id: number) => void;
   initGameData: () => void;
+  
+  // MAĞAZA FONKSİYONLARI
+  buySkin: (skinId: string, cost: number) => boolean;
+  equipSkin: (skinId: string) => void;
 }
 
 const INITIAL_BLOCK: BlockData = { position: [0, 0, 0], size: [3, 1, 3] };
 
 export const useGameStore = create<GameState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       blocks: [INITIAL_BLOCK],
       debris: [],
       gameState: 'idle',
@@ -47,8 +53,12 @@ export const useGameStore = create<GameState>()(
       combo: 0,
       actionTrigger: 0,
       floatingTexts: [],
-      highScore: 0, // Başlangıç rekoru
-      credits: 0,   // Başlangıç parası
+      highScore: 0,
+      credits: 0,
+      
+      // Varsayılan Mağaza Verileri
+      currentSkin: 'default',
+      unlockedSkins: ['default'],
 
       startGame: () => set({
         blocks: [INITIAL_BLOCK],
@@ -64,13 +74,11 @@ export const useGameStore = create<GameState>()(
 
       addBlock: (block, isPerfect, isGrowth = false) => set((state) => {
         const newCombo = isPerfect ? state.combo + 1 : 0;
-        
         let points = isPerfect ? 10 * newCombo : 5;
         if (isGrowth) points += 50; 
         
-        // YENİ: Ekonomi Mantığı (Perfect yapan daha çok kazanır)
         let earnedCredits = isPerfect ? 5 : 1;
-        if (isGrowth) earnedCredits += 25; // Kurtarma hamlesine büyük ödül
+        if (isGrowth) earnedCredits += 25; 
         
         let text = isPerfect ? (isGrowth ? "RESTORED!" : "PERFECT") : "GOOD";
         if (!isPerfect && newCombo === 0 && (block.size[0] < 0.8 || block.size[2] < 0.8)) text = "DANGER!";
@@ -85,14 +93,13 @@ export const useGameStore = create<GameState>()(
           blocks: [...state.blocks, { ...block, isPerfect }],
           combo: newCombo,
           score: state.score + points,
-          credits: state.credits + earnedCredits, // Parayı kasaya ekle
+          credits: state.credits + earnedCredits,
           floatingTexts: [...state.floatingTexts, newText]
         };
       }),
 
       addDebris: (debris) => set((state) => ({ debris: [...state.debris, debris] })),
 
-      // YENİ: Oyun bittiğinde rekor kırılmış mı kontrol et
       setGameOver: () => set((state) => ({ 
         gameState: 'gameover',
         highScore: Math.max(state.highScore, state.score) 
@@ -102,12 +109,37 @@ export const useGameStore = create<GameState>()(
         floatingTexts: state.floatingTexts.filter(t => t.id !== id)
       })),
 
-      initGameData: () => set({ gameState: 'idle' })
+      initGameData: () => set({ gameState: 'idle' }),
+
+      // Satın Alma Sistemi
+      buySkin: (skinId, cost) => {
+        const state = get();
+        if (state.credits >= cost && !state.unlockedSkins.includes(skinId)) {
+          set({
+            credits: state.credits - cost,
+            unlockedSkins: [...state.unlockedSkins, skinId],
+            currentSkin: skinId // Otomatik kuşan
+          });
+          return true;
+        }
+        return false;
+      },
+
+      // Kuşanma Sistemi
+      equipSkin: (skinId) => {
+        if (get().unlockedSkins.includes(skinId)) {
+          set({ currentSkin: skinId });
+        }
+      }
     }),
     {
-      name: 'edush-monolith-storage', // Tarayıcıdaki veritabanı adı
-      // Sadece highScore ve credits değerlerini kalıcı yap, diğerleri her oyunda sıfırlansın
-      partialize: (state) => ({ highScore: state.highScore, credits: state.credits }),
+      name: 'edush-monolith-storage',
+      partialize: (state) => ({ 
+        highScore: state.highScore, 
+        credits: state.credits,
+        currentSkin: state.currentSkin,
+        unlockedSkins: state.unlockedSkins
+      }),
     }
   )
 );

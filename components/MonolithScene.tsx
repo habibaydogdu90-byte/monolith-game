@@ -7,8 +7,19 @@ import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { useGameStore, BlockData } from '@/store/useGameStore';
 import { playSound } from '@/utils/soundEngine';
 
+// TEMA MATERYAL AYARLARI
+const SKIN_CONFIGS: Record<string, { baseColor: string; activeColor: string; roughness: number; metalness: number; emissive?: string; useTexture: boolean }> = {
+  default: { baseColor: "#444444", activeColor: "#999999", roughness: 0.7, metalness: 0.2, useTexture: true },
+  cyber: { baseColor: "#05111a", activeColor: "#00ffcc", roughness: 0.1, metalness: 0.9, emissive: "#003322", useTexture: false },
+  obsidian: { baseColor: "#111115", activeColor: "#ffd700", roughness: 0.9, metalness: 0.4, emissive: "#221100", useTexture: false },
+  ruby: { baseColor: "#2b000a", activeColor: "#ff0055", roughness: 0.2, metalness: 0.7, emissive: "#440011", useTexture: false }
+};
+
 function Shockwave({ size }: { size: [number, number, number] }) {
   const ref = useRef<THREE.Mesh>(null);
+  const currentSkin = useGameStore(state => state.currentSkin);
+  const skin = SKIN_CONFIGS[currentSkin] || SKIN_CONFIGS.default;
+
   useFrame(() => {
     if (ref.current && ref.current.scale.x < 1.8) {
       ref.current.scale.x += 0.06;
@@ -19,13 +30,16 @@ function Shockwave({ size }: { size: [number, number, number] }) {
   return (
     <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.51, 0]}>
       <planeGeometry args={[size[0], size[2]]} />
-      <meshBasicMaterial color={[15, 10, 0]} transparent opacity={1} toneMapped={false} wireframe />
+      <meshBasicMaterial color={skin.activeColor} transparent opacity={1} toneMapped={false} wireframe />
     </mesh>
   );
 }
 
 function RubbleParticle({ size }: { size: [number, number, number] }) {
   const ref = useRef<THREE.Mesh>(null);
+  const currentSkin = useGameStore(state => state.currentSkin);
+  const skin = SKIN_CONFIGS[currentSkin] || SKIN_CONFIGS.default;
+  
   const velocity = useRef(new THREE.Vector3((Math.random() - 0.5) * 0.4, Math.random() * 0.4, (Math.random() - 0.5) * 0.4));
   const rotationSpeed = useRef(new THREE.Vector3(Math.random() * 0.2, Math.random() * 0.2, Math.random() * 0.2));
 
@@ -44,7 +58,7 @@ function RubbleParticle({ size }: { size: [number, number, number] }) {
   return (
     <mesh ref={ref}>
       <boxGeometry args={[pSize, pSize, pSize]} />
-      <meshStandardMaterial color="#888888" roughness={1} />
+      <meshStandardMaterial color={skin.activeColor} roughness={1} />
     </mesh>
   );
 }
@@ -57,7 +71,6 @@ function CameraController() {
   useEffect(() => {
     if (actionTrigger > 0 && gameState === 'playing') {
       const isPerfect = blocks[blocks.length - 1]?.isPerfect;
-      // DÜZELTME 1: Sarsıntı kuvveti %70 azaltıldı. (Perfect: 0.05, Hata: 0.25)
       setShake(isPerfect ? 0.05 : 0.25); 
     }
   }, [actionTrigger, gameState, blocks]);
@@ -74,7 +87,6 @@ function CameraController() {
       }
     } else if (gameState !== 'city_view') {
       const targetY = blocks.length > 3 ? blocks.length - 2 : 0;
-      // DÜZELTME 2: Kamera yüksekliği +8'den +12'ye çıkarıldı. Kuleye daha tepeden bakacak.
       let camY = THREE.MathUtils.lerp(state.camera.position.y, targetY + 12, 0.05);
       let targetCenterY = THREE.MathUtils.lerp(controlsRef.current?.target.y || 0, targetY, 0.05);
 
@@ -114,9 +126,10 @@ function CameraController() {
 }
 
 function ImpactEffects() {
-  const { blocks, actionTrigger, gameState } = useGameStore();
+  const { blocks, actionTrigger, gameState, currentSkin } = useGameStore();
   const lightRef = useRef<THREE.PointLight>(null);
   const [intensity, setIntensity] = useState(0);
+  const skin = SKIN_CONFIGS[currentSkin] || SKIN_CONFIGS.default;
 
   useEffect(() => {
     if (actionTrigger > 0 && gameState === 'playing') {
@@ -142,7 +155,7 @@ function ImpactEffects() {
       ref={lightRef}
       position={[lastBlock.position[0], lastBlock.position[1] - 0.2, lastBlock.position[2]]}
       distance={15}
-      color={isPerfect ? "#ffb800" : "#ffffff"}
+      color={isPerfect ? skin.activeColor : "#ffffff"}
       intensity={0}
     />
   );
@@ -156,6 +169,9 @@ interface DebrisProps {
 
 function FallingDebris({ data, colorMap, normalMap }: DebrisProps) {
   const meshRef = useRef<THREE.Group>(null);
+  const currentSkin = useGameStore(state => state.currentSkin);
+  const skin = SKIN_CONFIGS[currentSkin] || SKIN_CONFIGS.default;
+
   useFrame(() => {
     if (meshRef.current) {
       meshRef.current.position.y -= 0.15; 
@@ -167,7 +183,13 @@ function FallingDebris({ data, colorMap, normalMap }: DebrisProps) {
     <group ref={meshRef} position={data.position}>
       <mesh scale={data.size}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial map={colorMap} normalMap={normalMap} color="#666666" roughness={0.8} />
+        <meshStandardMaterial 
+          map={skin.useTexture ? colorMap : undefined} 
+          normalMap={skin.useTexture ? normalMap : undefined} 
+          color={skin.baseColor} 
+          roughness={skin.roughness}
+          metalness={skin.metalness}
+        />
       </mesh>
       {[...Array(6)].map((_, i) => <RubbleParticle key={i} size={data.size} />)}
     </group>
@@ -181,7 +203,8 @@ interface ActiveBlockProps {
 
 function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const { blocks, actionTrigger, addBlock, addDebris, setGameOver, gameState, combo } = useGameStore();
+  const { blocks, actionTrigger, addBlock, addDebris, setGameOver, gameState, combo, currentSkin } = useGameStore();
+  const skin = SKIN_CONFIGS[currentSkin] || SKIN_CONFIGS.default;
   
   const lastBlock = blocks[blocks.length - 1];
   const level = blocks.length;
@@ -259,29 +282,36 @@ function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
     <>
       <mesh ref={meshRef} scale={lastBlock.size} castShadow>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial map={colorMap} normalMap={normalMap} color="#aaaaaa" roughness={0.6} />
+        <meshStandardMaterial 
+          map={skin.useTexture ? colorMap : undefined} 
+          normalMap={skin.useTexture ? normalMap : undefined} 
+          color={skin.activeColor} 
+          roughness={skin.roughness}
+          metalness={skin.metalness}
+          emissive={skin.emissive}
+          emissiveIntensity={skin.emissive ? 1.5 : 0}
+        />
       </mesh>
       <mesh position={[lastBlock.position[0], lastBlock.position[1] + 0.502, lastBlock.position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[lastBlock.size[0], lastBlock.size[2], 5, 5]} />
-        <meshBasicMaterial color="#00ff66" wireframe transparent opacity={0.5} toneMapped={false} />
+        <meshBasicMaterial color={skin.activeColor} wireframe transparent opacity={0.3} toneMapped={false} />
       </mesh>
     </>
   );
 }
 
 export default function MonolithScene() {
-  const { blocks, debris, gameState } = useGameStore();
+  const { blocks, debris, gameState, currentSkin } = useGameStore();
   const [textures, setTextures] = useState<{ color?: THREE.Texture, normal?: THREE.Texture }>({});
+  const skin = SKIN_CONFIGS[currentSkin] || SKIN_CONFIGS.default;
 
   useEffect(() => {
     const loader = new THREE.TextureLoader();
-    
     loader.load('/textures/concrete_color.jpg', (colorMap) => {
       colorMap.wrapS = THREE.RepeatWrapping;
       colorMap.wrapT = THREE.RepeatWrapping;
       setTextures(prev => ({ ...prev, color: colorMap }));
     });
-
     loader.load('/textures/concrete_normal.png', (normalMap) => {
       normalMap.wrapS = THREE.RepeatWrapping;
       normalMap.wrapT = THREE.RepeatWrapping;
@@ -291,9 +321,7 @@ export default function MonolithScene() {
 
   return (
     <div className="absolute inset-0 z-0 bg-[#101112]">
-      {/* DÜZELTME 3: Kameranın başlangıç mesafesi uzaklaştırıldı ve görüş açısı (FOV) 42'den 45'e çıkarıldı */}
       <Canvas shadows={{ type: THREE.PCFShadowMap }} dpr={[1, 2]} camera={{ position: [8, 12, 8], fov: 45 }}>
-        
         <color attach="background" args={['#101112']} />
         <fog attach="fog" args={['#101112', 20, 70]} />
         <Environment preset="city" environmentIntensity={0.8} />
@@ -309,20 +337,18 @@ export default function MonolithScene() {
               <mesh key={i} position={block.position} scale={block.size} receiveShadow castShadow>
                 <boxGeometry args={[1, 1, 1]} />
                 <meshStandardMaterial 
-                  map={textures.color} 
-                  normalMap={textures.normal} 
-                  color={i === 0 ? "#444444" : "#999999"} 
-                  roughness={0.7} 
-                  metalness={0.2}
+                  map={skin.useTexture ? textures.color : undefined} 
+                  normalMap={skin.useTexture ? textures.normal : undefined} 
+                  color={i === 0 ? "#333333" : skin.baseColor} 
+                  roughness={skin.roughness}
+                  metalness={skin.metalness}
+                  emissive={i > 0 ? skin.emissive : undefined}
+                  emissiveIntensity={skin.emissive ? 1.0 : 0}
                 />
-                
                 {block.isPerfect && (
-                  <>
-                    <Edges scale={1.002} threshold={15}>
-                      <lineBasicMaterial color={[15, 10, 0]} toneMapped={false} />
-                    </Edges>
-                    <Shockwave size={block.size} />
-                  </>
+                  <Edges scale={1.002} threshold={15}>
+                    <lineBasicMaterial color={skin.activeColor} toneMapped={false} />
+                  </Edges>
                 )}
               </mesh>
             ))}
@@ -340,7 +366,7 @@ export default function MonolithScene() {
         <CameraController />
 
         <EffectComposer multisampling={0}>
-          <Bloom luminanceThreshold={0.5} luminanceSmoothing={0.9} intensity={3.5} mipmapBlur />
+          <Bloom luminanceThreshold={0.4} luminanceSmoothing={0.9} intensity={3.5} mipmapBlur />
           <Vignette eskil={false} offset={0.3} darkness={1.2} />
         </EffectComposer>
       </Canvas>
