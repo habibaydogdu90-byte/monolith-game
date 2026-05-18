@@ -7,6 +7,55 @@ import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { useGameStore, BlockData } from '@/store/useGameStore';
 import { playSound } from '@/utils/soundEngine';
 
+// --- YENİ: PERFECT ŞOK DALGASI ---
+function Shockwave({ size }: { size: [number, number, number] }) {
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    if (ref.current && ref.current.scale.x < 1.8) {
+      // Halka dışarı doğru büyür
+      ref.current.scale.x += 0.06;
+      ref.current.scale.y += 0.06; // y ekseni aslında rotated plane'in z eksenidir
+      // Büyüdükçe saydamlaşıp kaybolur
+      (ref.current.material as THREE.MeshBasicMaterial).opacity = Math.max(0, (ref.current.material as THREE.MeshBasicMaterial).opacity - 0.04);
+    }
+  });
+  return (
+    <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.51, 0]}>
+      <planeGeometry args={[size[0], size[2]]} />
+      <meshBasicMaterial color={[15, 10, 0]} transparent opacity={1} toneMapped={false} wireframe />
+    </mesh>
+  );
+}
+
+// --- YENİ: MOLOZ PARTİKÜLLERİ ---
+function RubbleParticle({ size }: { size: [number, number, number] }) {
+  const ref = useRef<THREE.Mesh>(null);
+  // Rastgele bir patlama hızı ve yönü
+  const velocity = useRef(new THREE.Vector3((Math.random() - 0.5) * 0.4, Math.random() * 0.4, (Math.random() - 0.5) * 0.4));
+  const rotationSpeed = useRef(new THREE.Vector3(Math.random() * 0.2, Math.random() * 0.2, Math.random() * 0.2));
+
+  useFrame(() => {
+    if (ref.current) {
+      ref.current.position.add(velocity.current);
+      velocity.current.y -= 0.02; // Yer çekimi
+      ref.current.rotation.x += rotationSpeed.current.x;
+      ref.current.rotation.y += rotationSpeed.current.y;
+      ref.current.scale.multiplyScalar(0.92); // Küçülerek toz olup kaybolur
+    }
+  });
+
+  // Ana bloğun boyutuna orantılı minik bir parça
+  const pSize = (Math.random() * 0.15 + 0.05) * Math.max(size[0], size[2]);
+
+  return (
+    <mesh ref={ref}>
+      <boxGeometry args={[pSize, pSize, pSize]} />
+      <meshStandardMaterial color="#888888" roughness={1} />
+    </mesh>
+  );
+}
+
+// --- GÜNCELLEME: SİNEMATİK KAMERA ---
 function CameraController() {
   const { blocks, gameState, actionTrigger } = useGameStore();
   const controlsRef = useRef<any>(null);
@@ -20,7 +69,17 @@ function CameraController() {
   }, [actionTrigger, gameState, blocks]);
 
   useFrame((state) => {
-    if (gameState !== 'city_view') {
+    if (gameState === 'gameover') {
+      // YENİ: Oyun bitince kamera kulenin ortasına baksın ve yavaşça uzaklaşsın
+      const targetCenterY = blocks.length / 2;
+      let camY = THREE.MathUtils.lerp(state.camera.position.y, blocks.length + 6, 0.02);
+      
+      state.camera.position.y = camY;
+      if (controlsRef.current) {
+        controlsRef.current.target.y = THREE.MathUtils.lerp(controlsRef.current.target.y, targetCenterY, 0.02);
+        controlsRef.current.update();
+      }
+    } else if (gameState !== 'city_view') {
       const targetY = blocks.length > 3 ? blocks.length - 2 : 0;
       let camY = THREE.MathUtils.lerp(state.camera.position.y, targetY + 8, 0.05);
       let targetCenterY = THREE.MathUtils.lerp(controlsRef.current?.target.y || 0, targetY, 0.05);
@@ -48,7 +107,17 @@ function CameraController() {
     }
   });
 
-  return <OrbitControls ref={controlsRef} enableZoom={gameState === 'city_view'} enableRotate={gameState === 'city_view'} enablePan={false} />;
+  return (
+    <OrbitControls 
+      ref={controlsRef} 
+      enableZoom={gameState !== 'playing'} 
+      enableRotate={gameState !== 'playing'} 
+      enablePan={false} 
+      // YENİ: Game Over olunca kamerayı otomatik etrafında döndür
+      autoRotate={gameState === 'gameover'}
+      autoRotateSpeed={1.5}
+    />
+  );
 }
 
 function ImpactEffects() {
@@ -93,7 +162,7 @@ interface DebrisProps {
 }
 
 function FallingDebris({ data, colorMap, normalMap }: DebrisProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const meshRef = useRef<THREE.Group>(null);
   useFrame(() => {
     if (meshRef.current) {
       meshRef.current.position.y -= 0.15; 
@@ -102,10 +171,15 @@ function FallingDebris({ data, colorMap, normalMap }: DebrisProps) {
     }
   });
   return (
-    <mesh ref={meshRef} position={data.position} scale={data.size}>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial map={colorMap} normalMap={normalMap} color="#666666" roughness={0.8} />
-    </mesh>
+    // DÜZELTME: Artık Mesh değil, içine partikülleri de alabilen bir Group
+    <group ref={meshRef} position={data.position}>
+      <mesh scale={data.size}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial map={colorMap} normalMap={normalMap} color="#666666" roughness={0.8} />
+      </mesh>
+      {/* 6 adet minik moloz parçasını ana kütle ile birlikte patlatıyoruz */}
+      {[...Array(6)].map((_, i) => <RubbleParticle key={i} size={data.size} />)}
+    </group>
   );
 }
 
@@ -116,17 +190,14 @@ interface ActiveBlockProps {
 
 function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  // YENİ: combo değerini mağazadan alıyoruz
   const { blocks, actionTrigger, addBlock, addDebris, setGameOver, gameState, combo } = useGameStore();
   
   const lastBlock = blocks[blocks.length - 1];
   const level = blocks.length;
   const axis = level % 2 === 0 ? 'x' : 'z'; 
   
-  // YENİ: Dinamik Ritim Sistemi (Ezber Bozan Hız)
   const baseSpeed = 2.0;
   const speedMultiplier = 1 + Math.min(level * 0.06, 1.5);
-  // Her 4 blokta bir sinüs dalgasıyla hız aniden artar veya azalır
   const rhythmVariation = Math.sin(level * Math.PI / 4) * 0.6; 
   const speed = baseSpeed * speedMultiplier + rhythmVariation;
 
@@ -151,12 +222,9 @@ function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
         playSound('perfect'); 
         newPos[axisIndex] = targetPos; 
         
-        // --- YENİ: 3 COMBO RESTORASYON ÖDÜLÜ ---
         let isGrowth = false;
-        // Eğer combo 2 ise (bu vuruşla 3 olacak) ve blok orijinal boyutundan (3) küçükse
         if (combo >= 2 && (newSize[0] < 3 || newSize[2] < 3)) {
           isGrowth = true;
-          // Bloğu X ve Z ekseninde 0.4 birim büyüt (Maksimum 3 sınırını aşmadan)
           newSize[0] = Math.min(3, newSize[0] + 0.4);
           newSize[2] = Math.min(3, newSize[2] + 0.4);
         }
@@ -255,10 +323,16 @@ export default function MonolithScene() {
                   roughness={0.7} 
                   metalness={0.2}
                 />
+                
+                {/* YENİ: Sadece perfect olanlara Şok Dalgası efekti ekliyoruz */}
                 {block.isPerfect && (
-                  <Edges scale={1.002} threshold={15}>
-                    <lineBasicMaterial color={[15, 10, 0]} toneMapped={false} />
-                  </Edges>
+                  <>
+                    <Edges scale={1.002} threshold={15}>
+                      <lineBasicMaterial color={[15, 10, 0]} toneMapped={false} />
+                    </Edges>
+                    {/* Büyüyüp kaybolan neon halka */}
+                    <Shockwave size={block.size} />
+                  </>
                 )}
               </mesh>
             ))}
