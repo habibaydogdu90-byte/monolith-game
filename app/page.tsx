@@ -35,7 +35,6 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [isShopOpen, setIsShopOpen] = useState(false);
   
-  // YENİ: Leaderboard Durumları
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState<{name: string, score: number}[]>([]);
   const [playerName, setPlayerName] = useState("");
@@ -48,7 +47,7 @@ export default function Home() {
 
   const handleInteraction = (e?: React.PointerEvent) => {
     if (e && (e.target as HTMLElement).closest('.ui-btn')) return;
-    if (e && (e.target as HTMLElement).tagName === 'INPUT') return; // Inputa basınca tıklamayı engelleme
+    if (e && (e.target as HTMLElement).tagName === 'INPUT') return; 
     if (isShopOpen || isLeaderboardOpen) return;
 
     initAudio(); 
@@ -66,7 +65,6 @@ export default function Home() {
     { id: 'ruby', name: 'Ruby Crystal', cost: 500, color: 'bg-rose-600' },
   ];
 
-  // YENİ: Skoru Veritabanına Gönder
   const submitScore = async (e: React.PointerEvent) => {
     e.stopPropagation();
     if(playerName.length < 3) return;
@@ -84,7 +82,6 @@ export default function Home() {
     }
   };
 
-  // YENİ: Veritabanından Skorları Çek
   const openLeaderboard = async () => {
     setIsLeaderboardOpen(true);
     try {
@@ -93,6 +90,28 @@ export default function Home() {
       setLeaderboardData(data);
     } catch (e) {
       console.error("Leaderboard yüklenemedi", e);
+    }
+  };
+
+  // YENİ: Sosyal Medya Paylaşım Sistemi
+  const handleShare = async (e: React.PointerEvent) => {
+    e.stopPropagation();
+    const shareText = `Monolith'te ${score.toLocaleString()} skor yaptım! Edush Interactive'in yeni oyununda beni geçebilir misin?`;
+    const shareUrl = window.location.href;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Monolith - Edush Interactive',
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (err) {
+        console.log('Paylaşım iptal edildi veya desteklenmiyor.');
+      }
+    } else {
+      navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+      alert("Skor panoya kopyalandı! İstediğin yere yapıştırabilirsin.");
     }
   };
 
@@ -176,7 +195,6 @@ export default function Home() {
                 <span className="text-yellow-400 text-xl font-bold">{Math.max(score, highScore).toLocaleString()}</span>
               </div>
               
-              {/* YENİ: ATARİ SALONU TARZI İSİM GİRİŞ VE KAYIT ALANI */}
               {score > 0 && (
                 <div className="flex gap-2 mb-6 w-full">
                   <input 
@@ -198,12 +216,25 @@ export default function Home() {
                 </div>
               )}
 
-              <button 
-                onPointerDown={(e) => { e.stopPropagation(); startGame(); }}
-                className="ui-btn px-8 py-4 w-full bg-gradient-to-b from-neutral-200 to-neutral-400 rounded-md text-black font-black tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95 transition-all"
-              >
-                Try Again
-              </button>
+              {/* YENİ: İkili Buton Yapısı (Try Again + Share) */}
+              <div className="flex gap-2 w-full mt-2">
+                <button 
+                  onPointerDown={(e) => { e.stopPropagation(); startGame(); }}
+                  className="ui-btn flex-1 py-4 bg-gradient-to-b from-neutral-200 to-neutral-400 rounded-md text-black font-black tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95 transition-all"
+                >
+                  Try Again
+                </button>
+                
+                <button 
+                  onPointerDown={handleShare}
+                  className="ui-btn w-16 flex items-center justify-center bg-cyan-600 hover:bg-cyan-500 rounded-md text-white shadow-[0_0_15px_rgba(8,145,178,0.4)] hover:scale-105 active:scale-95 transition-all"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+                  </svg>
+                </button>
+              </div>
+
             </div>
           )}
         </div>
