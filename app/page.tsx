@@ -18,8 +18,8 @@ function FloatingTextItem({ data }: FloatingTextItemProps) {
 
   return (
     <div 
-      className={`absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2 font-medium tracking-[0.3em] uppercase drop-shadow-[0_0_15px_rgba(0,0,0,1)] pointer-events-none custom-float-anim whitespace-nowrap z-30
-        ${data.isPerfect ? 'text-yellow-400 text-2xl font-bold' : 'text-gray-300 text-lg'}`}
+      className={`absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2 font-light tracking-[0.3em] uppercase drop-shadow-[0_0_15px_rgba(0,0,0,1)] pointer-events-none custom-float-anim whitespace-nowrap z-30
+        ${data.isPerfect ? 'text-yellow-400 text-xl font-medium' : 'text-gray-400 text-lg'}`}
     >
       {data.text}
     </div>
@@ -114,11 +114,11 @@ export default function Home() {
     }
   };
 
-// YENİ: Gelir Modeli (Destek) Linki
   const handleSupport = (e: React.PointerEvent) => {
     e.stopPropagation();
-    window.open('https://patreon.com/Habip?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink', '_blank');
+    window.open('https://www.patreon.com/SENIN_KULLANICI_ADIN', '_blank');
   };
+
   return (
     <main 
       className="relative w-full h-[100dvh] bg-[#0a0a0a] overflow-hidden font-sans select-none touch-none"
@@ -135,8 +135,8 @@ export default function Home() {
           animation: floatUp 1s cubic-bezier(0.25, 1, 0.5, 1) forwards;
         }
         @keyframes pulseSoft {
-          0%, 100% { opacity: 0.7; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.05); }
+          0%, 100% { opacity: 0.7; transform: translateX(-50%) scale(1); }
+          50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
         }
         .animate-pulse-soft {
           animation: pulseSoft 2s infinite ease-in-out;
@@ -145,7 +145,6 @@ export default function Home() {
 
       <MonolithScene />
 
-      {/* YENİ: Üst Orta Kısımda Zarif Destek Butonu */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
         <button 
           onPointerDown={handleSupport} 
@@ -159,28 +158,29 @@ export default function Home() {
       </div>
 
       <div className="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between">
-        <header className="w-full p-6 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent pt-12">
-          <div className="flex gap-5 items-center">
-            <div className="flex flex-col">
-              <span className="text-[10px] text-neutral-400 tracking-[0.2em] mb-1">BEST RECORD</span>
-              <span className="text-sm text-yellow-500/90 font-bold tracking-wider">
-                {mounted ? highScore.toLocaleString() : '0'}
-              </span>
-            </div>
+        {/* YENİ: Üst Bilgi Paneli Taslağa Uyarlandı */}
+        <header className="w-full p-6 flex justify-between items-start bg-gradient-to-b from-black/90 via-black/40 to-transparent pt-12 pb-16">
+          <div className="flex flex-col">
+            <span className="text-[9px] text-neutral-400 tracking-[0.2em] mb-0.5">BEST RECORD</span>
+            <span className="text-sm text-yellow-500/90 font-bold tracking-wider">
+              {mounted ? highScore.toLocaleString() : '0'}
+            </span>
           </div>
 
-          <div className="flex gap-8 text-right pr-4">
+          <div className="flex gap-8 text-right pr-2">
             <div className="flex flex-col">
-              <span className="text-[10px] text-neutral-400 tracking-[0.2em]">SCORE</span>
-              <span className="text-3xl font-light text-white tracking-wider">{score.toLocaleString()}</span>
+              <span className="text-[9px] text-neutral-400 tracking-[0.2em]">SCORE</span>
+              <span className="text-3xl font-light text-white tracking-wider leading-tight">{score.toLocaleString()}</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] text-neutral-400 tracking-[0.2em]">CREDITS</span>
-              <div className="flex items-center gap-1 justify-end mt-1">
-                <svg className="w-4 h-4 text-cyan-300" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2.73 7.73a1 1 0 01-.15-1.12l4-7a1 1 0 01.8-.45h5.24a1 1 0 01.8.45l4 7a1 1 0 01-.15 1.12l-7 8a1 1 0 01-1.5 0l-7-8z"></path>
+              <span className="text-[9px] text-neutral-400 tracking-[0.2em]">CREDITS</span>
+              <div className="flex items-center gap-1.5 justify-end mt-1">
+                {/* YENİ: Elmas/Kristal İkonu */}
+                <svg className="w-4 h-4 text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2L2 12l10 10 10-10L12 2zm0 2.8l7.2 7.2-7.2 7.2-7.2-7.2L12 4.8z" />
+                  <path d="M12 7l5 5-5 5-5-5 5-5z" opacity="0.5" />
                 </svg>
-                <span className="text-xl font-light text-cyan-50 tracking-wider">
+                <span className="text-xl font-light text-cyan-50 tracking-wider leading-none">
                   {mounted ? credits.toLocaleString() : '...'}
                 </span>
               </div>
@@ -194,29 +194,29 @@ export default function Home() {
           ))}
           
           {gameState === 'playing' && combo > 1 && (
-            <div className="absolute top-[60%] text-yellow-400/90 text-sm font-bold tracking-[0.3em] uppercase drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]">
-              {combo}x COMBO
+            <div className="absolute top-[60%] text-yellow-400/90 text-[13px] font-medium tracking-[0.4em] uppercase drop-shadow-[0_0_15px_rgba(234,179,8,0.6)]">
+              {combo}x PERFECT COMBO
             </div>
           )}
 
           {gameState === 'idle' && !isShopOpen && !isLeaderboardOpen && (
-            <div className="absolute top-[35%] text-white text-3xl font-light tracking-[0.3em] animate-pulse drop-shadow-2xl">
+            <div className="absolute top-[35%] text-white text-2xl font-light tracking-[0.4em] animate-pulse drop-shadow-2xl">
               TAP TO START
             </div>
           )}
 
           {gameState === 'gameover' && !isShopOpen && !isLeaderboardOpen && (
-            <div className="z-50 flex flex-col items-center justify-center p-8 bg-black/90 backdrop-blur-md border border-neutral-800 rounded-xl shadow-[0_0_50px_rgba(0,0,0,1)] pointer-events-auto min-w-[300px]">
-              <h2 className="text-red-500/90 text-3xl font-black tracking-[0.3em] uppercase mb-4">Structure Failed</h2>
+            <div className="z-50 flex flex-col items-center justify-center p-8 bg-[#0a0a0a]/95 backdrop-blur-md border border-neutral-800 rounded-xl shadow-[0_0_50px_rgba(0,0,0,1)] pointer-events-auto min-w-[300px]">
+              <h2 className="text-red-500/90 text-2xl font-light tracking-[0.3em] uppercase mb-6">Structure Failed</h2>
               
-              <div className="flex w-full justify-between items-center mb-2 px-4 py-2 bg-white/5 rounded">
-                <span className="text-neutral-400 text-xs tracking-[0.2em] uppercase">Score</span>
-                <span className="text-white text-xl font-bold">{score.toLocaleString()}</span>
+              <div className="flex w-full justify-between items-center mb-3 px-4 py-2 bg-white/5 rounded-sm">
+                <span className="text-neutral-400 text-[10px] tracking-[0.2em] uppercase">Score</span>
+                <span className="text-white text-lg font-bold">{score.toLocaleString()}</span>
               </div>
               
-              <div className="flex w-full justify-between items-center mb-6 px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded">
-                <span className="text-yellow-500/80 text-xs tracking-[0.2em] uppercase">Best</span>
-                <span className="text-yellow-400 text-xl font-bold">{Math.max(score, highScore).toLocaleString()}</span>
+              <div className="flex w-full justify-between items-center mb-6 px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-sm">
+                <span className="text-yellow-500/80 text-[10px] tracking-[0.2em] uppercase">Best</span>
+                <span className="text-yellow-400 text-lg font-bold">{Math.max(score, highScore).toLocaleString()}</span>
               </div>
               
               {score > 0 && (
@@ -227,13 +227,13 @@ export default function Home() {
                     placeholder="AAA"
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
-                    className="w-1/3 bg-neutral-900 border border-neutral-700 rounded text-center text-xl text-white font-black tracking-widest outline-none focus:border-yellow-500 transition-colors uppercase"
+                    className="w-1/3 bg-neutral-900 border border-neutral-700 rounded-sm text-center text-lg text-white font-medium tracking-widest outline-none focus:border-yellow-500 transition-colors uppercase"
                     onPointerDown={(e) => e.stopPropagation()}
                   />
                   <button 
                     onPointerDown={submitScore}
                     disabled={playerName.length < 3 || isSubmitting}
-                    className="ui-btn flex-1 bg-yellow-600 hover:bg-yellow-500 disabled:bg-neutral-800 disabled:text-neutral-500 text-black font-bold uppercase tracking-wider rounded transition-all"
+                    className="ui-btn flex-1 bg-yellow-600/90 hover:bg-yellow-500 disabled:bg-neutral-800 disabled:text-neutral-500 text-black font-bold uppercase tracking-widest text-xs rounded-sm transition-all"
                   >
                     {isSubmitting ? '...' : 'SAVE SCORE'}
                   </button>
@@ -243,84 +243,90 @@ export default function Home() {
               <div className="flex gap-2 w-full mt-2">
                 <button 
                   onPointerDown={(e) => { e.stopPropagation(); startGame(); }}
-                  className="ui-btn flex-1 py-4 bg-gradient-to-b from-neutral-200 to-neutral-400 rounded-md text-black font-black tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95 transition-all"
+                  className="ui-btn flex-1 py-3 bg-gradient-to-b from-neutral-300 to-neutral-500 rounded-sm text-black text-xs font-bold tracking-[0.2em] uppercase shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:scale-105 active:scale-95 transition-all"
                 >
                   Try Again
                 </button>
                 
                 <button 
                   onPointerDown={handleShare}
-                  className="ui-btn w-16 flex items-center justify-center bg-cyan-600 hover:bg-cyan-500 rounded-md text-white shadow-[0_0_15px_rgba(8,145,178,0.4)] hover:scale-105 active:scale-95 transition-all"
+                  className="ui-btn w-12 flex items-center justify-center bg-cyan-600/90 hover:bg-cyan-500 rounded-sm text-white shadow-[0_0_10px_rgba(8,145,178,0.3)] hover:scale-105 active:scale-95 transition-all"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
                   </svg>
                 </button>
               </div>
-
             </div>
           )}
         </div>
 
+        {/* YENİ: Alt Panel (The Sanctuary & Butonlar) Taslağa Uyarlandı */}
         <div className="w-full flex flex-col pointer-events-none z-20">
-          <div className="w-full bg-gradient-to-b from-neutral-800 to-neutral-900 border-t border-b border-neutral-700/50 py-1.5 text-center">
-            <span className="text-[10px] text-neutral-400 tracking-[0.3em] uppercase font-semibold">The Sanctuary</span>
+          <div className="w-full bg-[#111] border-t border-b border-neutral-800 py-2 text-center shadow-[0_-5px_20px_rgba(0,0,0,0.8)]">
+            <span className="text-[10px] text-neutral-400 tracking-[0.4em] uppercase font-light">The Sanctuary</span>
           </div>
 
-          <div className="relative h-40 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center justify-end pb-6">
+          <div className="relative h-48 bg-gradient-to-t from-[#000] via-[#050505]/95 to-transparent flex flex-col items-center justify-end pb-8">
+            <div className="text-[9px] text-neutral-600 tracking-[0.4em] uppercase absolute bottom-[130px] font-light">City of Monoliths</div>
+            
             <div className="w-full px-6 flex justify-between items-center pointer-events-auto max-w-md mx-auto gap-4">
               
               <button 
                 onPointerDown={(e) => { e.stopPropagation(); setIsShopOpen(true); }}
-                className="ui-btn px-4 py-3 bg-gradient-to-b from-neutral-700 to-neutral-800 border border-neutral-600 rounded flex-1 shadow-lg active:scale-95 transition-all"
+                className="ui-btn px-2 py-3.5 bg-gradient-to-b from-neutral-800 to-neutral-900 border-t border-neutral-600/50 rounded-sm flex-1 shadow-[0_5px_15px_rgba(0,0,0,0.5)] active:scale-95 transition-all backdrop-blur-md"
               >
-                <span className="text-[10px] text-cyan-400 tracking-[0.2em] font-bold">UPGRADES</span>
+                <span className="text-[9px] text-neutral-300 tracking-[0.2em] font-medium">UPGRADES</span>
               </button>
 
+              {/* YENİ: Taslaktaki Devasa Sarı Neon "TAP TO DROP" Butonu */}
               <button 
-                className="ui-btn w-24 h-24 rounded-full border-[6px] border-neutral-800 bg-gradient-to-b from-neutral-700 to-neutral-900 flex items-center justify-center relative shadow-[0_0_40px_rgba(234,179,8,0.15)] hover:scale-105 active:scale-95 transition-all shrink-0"
+                className="ui-btn w-28 h-28 rounded-full border-[2px] border-yellow-600/40 bg-gradient-to-b from-neutral-800 to-[#0a0a0a] flex items-center justify-center relative shadow-[0_0_30px_rgba(234,179,8,0.15)] hover:scale-105 active:scale-95 transition-all shrink-0 group"
                 onPointerDown={(e) => { e.stopPropagation(); handleInteraction(); }}
               >
-                <div className="absolute inset-1 rounded-full border border-yellow-500/70 shadow-[0_0_15px_rgba(234,179,8,0.5)]"></div>
-                <div className="flex flex-col items-center">
-                  <span className="text-[9px] text-neutral-200 tracking-[0.2em] font-bold text-center leading-tight">TAP</span>
+                <div className="absolute inset-[-5px] rounded-full border border-yellow-500/20 group-hover:border-yellow-500/40 transition-colors"></div>
+                <div className="absolute inset-1 rounded-full border-[3px] border-yellow-500/80 shadow-[inset_0_0_15px_rgba(234,179,8,0.3),0_0_15px_rgba(234,179,8,0.5)]"></div>
+                
+                <div className="flex flex-col items-center z-10 mt-1">
+                  <svg className="w-5 h-5 text-neutral-300 mb-1 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
+                  </svg>
+                  <span className="text-[9px] text-neutral-200 tracking-[0.15em] font-bold text-center leading-tight">TAP TO<br/>DROP</span>
                 </div>
               </button>
 
               <button 
                 onPointerDown={(e) => { e.stopPropagation(); openLeaderboard(); }}
-                className="ui-btn px-4 py-3 bg-gradient-to-b from-neutral-700 to-neutral-800 border border-neutral-600 rounded flex-1 shadow-lg active:scale-95 transition-all"
+                className="ui-btn px-2 py-3.5 bg-gradient-to-b from-neutral-800 to-neutral-900 border-t border-neutral-600/50 rounded-sm flex-1 shadow-[0_5px_15px_rgba(0,0,0,0.5)] active:scale-95 transition-all backdrop-blur-md"
               >
-                <span className="text-[10px] text-yellow-500 tracking-[0.2em] font-bold">RANKS</span>
+                <span className="text-[9px] text-neutral-300 tracking-[0.2em] font-medium">LEADERBOARD</span>
               </button>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Leaderboard & Shop Modals ... (Aynı Mantıkla Korundu) */}
       {mounted && isLeaderboardOpen && (
-        <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 animate-fade-in">
-          <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-xl p-6 shadow-2xl relative">
+        <div className="absolute inset-0 bg-black/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 animate-fade-in">
+          <div className="w-full max-w-md bg-[#0a0a0a] border border-neutral-800 rounded-sm p-6 shadow-2xl relative">
             <header className="flex justify-between items-center mb-6 border-b border-neutral-800 pb-4">
-              <h3 className="text-white font-bold tracking-[0.2em] text-lg uppercase">Global Ranks</h3>
-              <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.984 3.984 0 01-2.639-1.006l-1.353 2.706A1 1 0 0110 18a1 1 0 01-.894-.553l-1.353-2.706A3.984 3.984 0 015 15a3.989 3.989 0 01-2.639-1.006 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
+              <h3 className="text-white font-light tracking-[0.3em] text-sm uppercase">Global Ranks</h3>
             </header>
 
             <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto mb-6 pr-1">
               {leaderboardData.length === 0 ? (
-                <div className="text-center text-neutral-500 py-4 tracking-widest text-sm">CONNECTING SATELLITE...</div>
+                <div className="text-center text-neutral-500 py-4 tracking-widest text-xs">CONNECTING SATELLITE...</div>
               ) : (
                 leaderboardData.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-neutral-950 rounded border border-neutral-800/60">
+                  <div key={index} className="flex justify-between items-center p-3 bg-[#111] rounded-sm border border-neutral-800/50">
                     <div className="flex items-center gap-4">
-                      <span className={`font-black text-lg ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-neutral-300' : index === 2 ? 'text-amber-700' : 'text-neutral-600'}`}>
+                      <span className={`font-black text-sm ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-neutral-400' : index === 2 ? 'text-amber-700' : 'text-neutral-600'}`}>
                         #{index + 1}
                       </span>
-                      <span className="text-white font-bold tracking-[0.2em]">{item.name}</span>
+                      <span className="text-neutral-200 font-medium tracking-[0.2em] text-xs">{item.name}</span>
                     </div>
-                    <span className="text-cyan-400 font-bold tracking-wider">{item.score.toLocaleString()}</span>
+                    <span className="text-cyan-400 font-light tracking-wider text-sm">{item.score.toLocaleString()}</span>
                   </div>
                 ))
               )}
@@ -328,7 +334,7 @@ export default function Home() {
 
             <button 
               onPointerDown={(e) => { e.stopPropagation(); setIsLeaderboardOpen(false); }}
-              className="ui-btn w-full py-3 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded text-neutral-300 text-xs font-bold tracking-[0.2em] uppercase transition-colors"
+              className="ui-btn w-full py-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700/50 rounded-sm text-neutral-400 text-[10px] font-bold tracking-[0.3em] uppercase transition-colors"
             >
               Close Feed
             </button>
@@ -337,35 +343,35 @@ export default function Home() {
       )}
 
       {mounted && isShopOpen && (
-        <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 animate-fade-in">
-          <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-xl p-6 shadow-2xl relative">
+        <div className="absolute inset-0 bg-black/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 animate-fade-in">
+          <div className="w-full max-w-md bg-[#0a0a0a] border border-neutral-800 rounded-sm p-6 shadow-2xl relative">
             <header className="flex justify-between items-center mb-6 border-b border-neutral-800 pb-4">
-              <h3 className="text-white font-bold tracking-[0.2em] text-lg uppercase">Core Upgrades</h3>
-              <div className="flex items-center gap-1 bg-cyan-950/50 border border-cyan-800/30 px-3 py-1 rounded text-cyan-400 text-sm font-bold">
+              <h3 className="text-white font-light tracking-[0.3em] text-sm uppercase">Core Upgrades</h3>
+              <div className="flex items-center gap-1 bg-cyan-950/30 border border-cyan-800/30 px-2 py-1 rounded-sm text-cyan-400 text-xs font-medium">
                 <span>{credits}</span>
-                <span className="text-xs">CR</span>
+                <span className="text-[10px]">CR</span>
               </div>
             </header>
 
-            <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto mb-6 pr-1">
+            <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto mb-6 pr-1">
               {shopItems.map((item) => {
                 const isOwned = unlockedSkins.includes(item.id);
                 const isActive = currentSkin === item.id;
 
                 return (
-                  <div key={item.id} className="flex justify-between items-center p-3 bg-neutral-950 rounded border border-neutral-800/60">
+                  <div key={item.id} className="flex justify-between items-center p-3 bg-[#111] rounded-sm border border-neutral-800/50">
                     <div className="flex items-center gap-3">
-                      <div className={`w-4 h-4 rounded-full ${item.color} shadow-lg`} />
-                      <span className="text-sm text-neutral-200 font-medium tracking-wide">{item.name}</span>
+                      <div className={`w-3 h-3 rounded-full ${item.color} shadow-lg`} />
+                      <span className="text-xs text-neutral-300 font-light tracking-[0.1em]">{item.name}</span>
                     </div>
 
                     <div className="pointer-events-auto">
                       {isActive ? (
-                        <span className="text-xs text-emerald-400 font-bold tracking-wider uppercase border border-emerald-500/25 px-2 py-1 rounded bg-emerald-950/20">Equipped</span>
+                        <span className="text-[10px] text-emerald-500/80 font-bold tracking-widest uppercase px-2 py-1">Equipped</span>
                       ) : isOwned ? (
                         <button 
                           onPointerDown={(e) => { e.stopPropagation(); equipSkin(item.id); }}
-                          className="ui-btn text-xs bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold px-3 py-1 rounded transition-colors"
+                          className="ui-btn text-[10px] bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold px-3 py-1.5 rounded-sm transition-colors tracking-widest uppercase"
                         >
                           Equip
                         </button>
@@ -373,8 +379,8 @@ export default function Home() {
                         <button 
                           onPointerDown={(e) => { e.stopPropagation(); buySkin(item.id, item.cost); }}
                           disabled={credits < item.cost}
-                          className={`ui-btn text-xs font-bold px-3 py-1 rounded transition-all
-                            ${credits >= item.cost ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-md' : 'bg-neutral-800 text-neutral-500 cursor-not-allowed opacity-50'}`}
+                          className={`ui-btn text-[10px] font-bold px-3 py-1.5 rounded-sm transition-all tracking-widest uppercase
+                            ${credits >= item.cost ? 'bg-cyan-600/90 hover:bg-cyan-500 text-white shadow-md' : 'bg-neutral-900 text-neutral-600 cursor-not-allowed'}`}
                         >
                           {item.cost} CR
                         </button>
@@ -387,7 +393,7 @@ export default function Home() {
 
             <button 
               onPointerDown={(e) => { e.stopPropagation(); setIsShopOpen(false); }}
-              className="ui-btn w-full py-3 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded text-neutral-300 text-xs font-bold tracking-[0.2em] uppercase transition-colors"
+              className="ui-btn w-full py-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700/50 rounded-sm text-neutral-400 text-[10px] font-bold tracking-[0.3em] uppercase transition-colors"
             >
               Back To Sanctuary
             </button>
