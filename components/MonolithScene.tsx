@@ -7,12 +7,16 @@ import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { useGameStore, BlockData } from '@/store/useGameStore';
 import { playSound } from '@/utils/soundEngine';
 
-// TEMA MATERYAL AYARLARI (Gelecekte buraya Cam ve Metal özelliklerini ekleyeceğiz)
-const SKIN_CONFIGS: Record<string, { baseColor: string; activeColor: string; roughness: number; metalness: number; emissive?: string; useTexture: boolean }> = {
-  default: { baseColor: "#444444", activeColor: "#999999", roughness: 0.7, metalness: 0.2, useTexture: true },
-  cyber: { baseColor: "#05111a", activeColor: "#00ffcc", roughness: 0.1, metalness: 0.9, emissive: "#003322", useTexture: false },
-  obsidian: { baseColor: "#111115", activeColor: "#ffd700", roughness: 0.9, metalness: 0.4, emissive: "#221100", useTexture: false },
-  ruby: { baseColor: "#2b000a", activeColor: "#ff0055", roughness: 0.2, metalness: 0.7, emissive: "#440011", useTexture: false }
+// YENİ: MATERYAL DEVRİMİ (Cam, Clearcoat ve Kırılma İndisleri Eklendi)
+const SKIN_CONFIGS: Record<string, { 
+  baseColor: string; activeColor: string; roughness: number; metalness: number; 
+  emissive?: string; useTexture: boolean; transmission?: number; thickness?: number; 
+  ior?: number; clearcoat?: number 
+}> = {
+  default: { baseColor: "#444444", activeColor: "#999999", roughness: 0.8, metalness: 0.2, useTexture: true }, // Brütalist Beton
+  cyber: { baseColor: "#001a14", activeColor: "#00ffcc", roughness: 0.1, metalness: 0.1, emissive: "#004d33", useTexture: false, transmission: 0.95, thickness: 0.5, ior: 1.5 }, // Saydam Neon Cam
+  obsidian: { baseColor: "#111115", activeColor: "#ffd700", roughness: 0.2, metalness: 0.9, emissive: "#221100", useTexture: false, clearcoat: 1.0 }, // Cilalı Altın/Obsidyen
+  ruby: { baseColor: "#2b000a", activeColor: "#ff0055", roughness: 0.05, metalness: 0.3, emissive: "#440011", useTexture: false, transmission: 0.8, thickness: 1.2, ior: 1.8 } // Kırmızı Kristal
 };
 
 function Shockwave({ size }: { size: [number, number, number] }) {
@@ -58,7 +62,14 @@ function RubbleParticle({ size }: { size: [number, number, number] }) {
   return (
     <mesh ref={ref}>
       <boxGeometry args={[pSize, pSize, pSize]} />
-      <meshStandardMaterial color={skin.activeColor} roughness={1} />
+      {/* YENİ: Parçacıklar da fiziksel materyale geçti */}
+      <meshPhysicalMaterial 
+        color={skin.activeColor} 
+        roughness={skin.roughness} 
+        metalness={skin.metalness}
+        transmission={skin.transmission || 0}
+        thickness={skin.thickness || 0}
+      />
     </mesh>
   );
 }
@@ -87,7 +98,6 @@ function CameraController() {
       }
     } else if (gameState !== 'city_view') {
       const targetY = blocks.length > 3 ? blocks.length - 2 : 0;
-      // Yeni sinematik kameraya uyum sağlaması için Y yüksekliği 18'e çıkarıldı
       let camY = THREE.MathUtils.lerp(state.camera.position.y, targetY + 18, 0.05);
       let targetCenterY = THREE.MathUtils.lerp(controlsRef.current?.target.y || 0, targetY, 0.05);
 
@@ -184,12 +194,17 @@ function FallingDebris({ data, colorMap, normalMap }: DebrisProps) {
     <group ref={meshRef} position={data.position}>
       <mesh scale={data.size}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial 
+        <meshPhysicalMaterial 
           map={skin.useTexture ? colorMap : undefined} 
           normalMap={skin.useTexture ? normalMap : undefined} 
           color={skin.baseColor} 
           roughness={skin.roughness}
           metalness={skin.metalness}
+          transmission={skin.transmission || 0}
+          thickness={skin.thickness || 0}
+          ior={skin.ior || 1.5}
+          clearcoat={skin.clearcoat || 0}
+          clearcoatRoughness={0.1}
         />
       </mesh>
       {[...Array(6)].map((_, i) => <RubbleParticle key={i} size={data.size} />)}
@@ -283,7 +298,7 @@ function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
     <>
       <mesh ref={meshRef} scale={lastBlock.size} castShadow>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial 
+        <meshPhysicalMaterial 
           map={skin.useTexture ? colorMap : undefined} 
           normalMap={skin.useTexture ? normalMap : undefined} 
           color={skin.activeColor} 
@@ -291,6 +306,11 @@ function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
           metalness={skin.metalness}
           emissive={skin.emissive}
           emissiveIntensity={skin.emissive ? 1.5 : 0}
+          transmission={skin.transmission || 0}
+          thickness={skin.thickness || 0}
+          ior={skin.ior || 1.5}
+          clearcoat={skin.clearcoat || 0}
+          clearcoatRoughness={0.1}
         />
       </mesh>
       <mesh position={[lastBlock.position[0], lastBlock.position[1] + 0.502, lastBlock.position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -322,19 +342,14 @@ export default function MonolithScene() {
 
   return (
     <div className="absolute inset-0 z-0 bg-[#070709]">
-      {/* MİMARİ İZOMETRİK KAMERA: FOV kısıldı (25), kamera uzaklaştırıldı (14,18,14) */}
       <Canvas shadows={{ type: THREE.PCFSoftShadowMap }} dpr={[1, 2]} camera={{ position: [14, 18, 14], fov: 25 }}>
         
-        {/* ZİFİRİ KARANLIK ORTAM VE SİS */}
         <color attach="background" args={['#070709']} />
         <fogExp2 attach="fog" args={['#070709', 0.035]} />
         
-        {/* STÜDYO YANSIMALARI */}
-        <Environment preset="studio" environmentIntensity={0.5} />
-        
+        <Environment preset="studio" environmentIntensity={0.8} />
         <ambientLight intensity={0.05} />
         
-        {/* DRAMATİK GÜNEŞ IŞIĞI (Sarımtırak God Ray Etkisi) */}
         <directionalLight 
           castShadow 
           position={[10, 20, -10]} 
@@ -344,7 +359,6 @@ export default function MonolithScene() {
           shadow-bias={-0.0001} 
         />
         
-        {/* SOĞUK DOLGU IŞIĞI (Ters Köşeden Gölgeleri Kırar) */}
         <directionalLight position={[-10, 5, 10]} intensity={1.5} color="#4a5568" />
 
         <ImpactEffects />
@@ -354,7 +368,8 @@ export default function MonolithScene() {
             {blocks.map((block, i) => (
               <mesh key={i} position={block.position} scale={block.size} receiveShadow castShadow>
                 <boxGeometry args={[1, 1, 1]} />
-                <meshStandardMaterial 
+                {/* YENİ: SABİT BLOKLAR İÇİN FİZİKSEL MATERYAL */}
+                <meshPhysicalMaterial 
                   map={skin.useTexture ? textures.color : undefined} 
                   normalMap={skin.useTexture ? textures.normal : undefined} 
                   color={i === 0 ? "#1a1a1a" : skin.baseColor} 
@@ -362,6 +377,11 @@ export default function MonolithScene() {
                   metalness={skin.metalness}
                   emissive={i > 0 ? skin.emissive : undefined}
                   emissiveIntensity={skin.emissive ? 1.0 : 0}
+                  transmission={skin.transmission || 0}
+                  thickness={skin.thickness || 0}
+                  ior={skin.ior || 1.5}
+                  clearcoat={skin.clearcoat || 0}
+                  clearcoatRoughness={0.1}
                 />
                 {block.isPerfect && (
                   <Edges scale={1.002} threshold={15}>
@@ -375,7 +395,6 @@ export default function MonolithScene() {
           </>
         )}
 
-        {/* ZEMİN (Artık tamamen görünmez, sadece ışıkları tutar) */}
         <mesh receiveShadow position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[300, 300]} />
           <meshStandardMaterial color="#070709" roughness={1} />
