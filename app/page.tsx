@@ -93,7 +93,6 @@ export default function Home() {
     }
   };
 
-  // YENİ: Sosyal Medya Paylaşım Sistemi
   const handleShare = async (e: React.PointerEvent) => {
     e.stopPropagation();
     const shareText = `Monolith'te ${score.toLocaleString()} skor yaptım! Edush Interactive'in yeni oyununda beni geçebilir misin?`;
@@ -115,6 +114,13 @@ export default function Home() {
     }
   };
 
+  // YENİ: Gelir Modeli (Destek) Linki
+  const handleSupport = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    // Buradaki linki daha sonra kendi BuyMeACoffee veya Patreon linkinle değiştireceksin
+    window.open('https://www.buymeacoffee.com/', '_blank');
+  };
+
   return (
     <main 
       className="relative w-full h-[100dvh] bg-[#0a0a0a] overflow-hidden font-sans select-none touch-none"
@@ -130,12 +136,32 @@ export default function Home() {
         .custom-float-anim {
           animation: floatUp 1s cubic-bezier(0.25, 1, 0.5, 1) forwards;
         }
+        @keyframes pulseSoft {
+          0%, 100% { opacity: 0.7; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.05); }
+        }
+        .animate-pulse-soft {
+          animation: pulseSoft 2s infinite ease-in-out;
+        }
       `}} />
 
       <MonolithScene />
 
+      {/* YENİ: Üst Orta Kısımda Zarif Destek Butonu */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
+        <button 
+          onPointerDown={handleSupport} 
+          className="ui-btn flex items-center gap-1.5 px-3 py-1.5 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 rounded-full text-rose-400 text-[9px] font-bold tracking-widest transition-all backdrop-blur-sm shadow-[0_0_10px_rgba(244,63,94,0.1)] animate-pulse-soft"
+        >
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+          </svg>
+          SUPPORT STUDIO
+        </button>
+      </div>
+
       <div className="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between">
-        <header className="w-full p-6 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent">
+        <header className="w-full p-6 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent pt-12">
           <div className="flex gap-5 items-center">
             <div className="flex flex-col">
               <span className="text-[10px] text-neutral-400 tracking-[0.2em] mb-1">BEST RECORD</span>
@@ -216,7 +242,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* YENİ: İkili Buton Yapısı (Try Again + Share) */}
               <div className="flex gap-2 w-full mt-2">
                 <button 
                   onPointerDown={(e) => { e.stopPropagation(); startGame(); }}
@@ -275,7 +300,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ================= LEADERBOARD MODAL PANELİ ================= */}
       {mounted && isLeaderboardOpen && (
         <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 animate-fade-in">
           <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-xl p-6 shadow-2xl relative">
@@ -314,7 +338,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* ================= MAĞAZA MODAL PANELİ ================= */}
       {mounted && isShopOpen && (
         <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 animate-fade-in">
           <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-xl p-6 shadow-2xl relative">
