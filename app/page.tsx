@@ -19,7 +19,7 @@ function FloatingTextItem({ data }: FloatingTextItemProps) {
   return (
     <div 
       className={`absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2 font-light tracking-[0.3em] uppercase drop-shadow-[0_0_15px_rgba(0,0,0,1)] pointer-events-none custom-float-anim whitespace-nowrap z-30
-        ${data.isPerfect ? 'text-yellow-400 text-xl font-medium' : 'text-gray-400 text-lg'}`}
+        ${data.isPerfect ? 'text-white text-2xl font-bold drop-shadow-[0_0_20px_rgba(255,255,255,0.8)]' : 'text-gray-400 text-lg'}`}
     >
       {data.text}
     </div>
@@ -40,18 +40,28 @@ export default function Home() {
   const [playerName, setPlayerName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // YENİ: Dopamin Patlaması İçin Ekran Parlama Efekti State'i
+  const [flash, setFlash] = useState(false);
+
   useEffect(() => {
     setMounted(true);
     initGameData();
   }, [initGameData]);
 
-const handleInteraction = (e?: React.PointerEvent) => {
+  // YENİ: Kombo her arttığında (Perfect yapıldığında) ekranı parlat
+  useEffect(() => {
+    if (combo > 1 && gameState === 'playing') {
+      setFlash(true);
+      const timer = setTimeout(() => setFlash(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [combo, gameState]);
+
+  const handleInteraction = (e?: React.PointerEvent) => {
     if (e && (e.target as HTMLElement).closest('.ui-btn')) return;
     if (e && (e.target as HTMLElement).tagName === 'INPUT') return; 
     if (isShopOpen || isLeaderboardOpen) return;
 
-    // YENİ: Haptic Feedback (Titreşim)
-    // Eğer cihaz destekliyorsa (telefon/tablet), ekrana dokunulduğunda 15 milisaniyelik tok ve kısa bir titreşim verir.
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate(15);
     }
@@ -65,11 +75,14 @@ const handleInteraction = (e?: React.PointerEvent) => {
   };
 
   const shopItems = [
-    { id: 'default', name: 'Brutalist Concrete', cost: 0, color: 'bg-neutral-600' },
-    { id: 'cyber', name: 'Cyber Neon', cost: 100, color: 'bg-emerald-400' },
-    { id: 'obsidian', name: 'Obsidian Gold', cost: 250, color: 'bg-amber-500' },
-    { id: 'ruby', name: 'Ruby Crystal', cost: 500, color: 'bg-rose-600' },
+    { id: 'default', name: 'Brutalist Concrete', cost: 0, color: 'bg-neutral-600', glow: 'rgba(255,255,255,0.2)' },
+    { id: 'cyber', name: 'Cyber Neon', cost: 100, color: 'bg-emerald-400', glow: 'rgba(16,185,129,0.4)' },
+    { id: 'obsidian', name: 'Obsidian Gold', cost: 250, color: 'bg-amber-500', glow: 'rgba(245,158,11,0.4)' },
+    { id: 'ruby', name: 'Ruby Crystal', cost: 500, color: 'bg-rose-600', glow: 'rgba(225,29,72,0.4)' },
   ];
+
+  // O anki temaya göre parlama rengini belirle
+  const currentGlow = shopItems.find(item => item.id === currentSkin)?.glow || 'rgba(255,255,255,0.2)';
 
   const submitScore = async (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -147,7 +160,24 @@ const handleInteraction = (e?: React.PointerEvent) => {
         .animate-pulse-soft {
           animation: pulseSoft 2s infinite ease-in-out;
         }
+        @keyframes popIn {
+          0% { transform: scale(0.5); opacity: 0; }
+          50% { transform: scale(1.2); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop-in {
+          animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
       `}} />
+
+      {/* YENİ: Ekran Kenarı Dopamin Parlaması (Screen Edge Flash) */}
+      <div 
+        className="absolute inset-0 z-40 pointer-events-none transition-opacity duration-300 ease-out"
+        style={{ 
+          boxShadow: `inset 0 0 100px ${currentGlow}`,
+          opacity: flash ? 1 : 0 
+        }}
+      />
 
       <MonolithScene />
 
@@ -164,7 +194,6 @@ const handleInteraction = (e?: React.PointerEvent) => {
       </div>
 
       <div className="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between">
-        {/* YENİ: Üst Bilgi Paneli Taslağa Uyarlandı */}
         <header className="w-full p-6 flex justify-between items-start bg-gradient-to-b from-black/90 via-black/40 to-transparent pt-12 pb-16">
           <div className="flex flex-col">
             <span className="text-[9px] text-neutral-400 tracking-[0.2em] mb-0.5">BEST RECORD</span>
@@ -181,7 +210,6 @@ const handleInteraction = (e?: React.PointerEvent) => {
             <div className="flex flex-col">
               <span className="text-[9px] text-neutral-400 tracking-[0.2em]">CREDITS</span>
               <div className="flex items-center gap-1.5 justify-end mt-1">
-                {/* YENİ: Elmas/Kristal İkonu */}
                 <svg className="w-4 h-4 text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2L2 12l10 10 10-10L12 2zm0 2.8l7.2 7.2-7.2 7.2-7.2-7.2L12 4.8z" />
                   <path d="M12 7l5 5-5 5-5-5 5-5z" opacity="0.5" />
@@ -199,9 +227,10 @@ const handleInteraction = (e?: React.PointerEvent) => {
              <FloatingTextItem key={item.id} data={item} />
           ))}
           
+          {/* YENİ: Ekrana sertçe vuran Combo Animasyonu */}
           {gameState === 'playing' && combo > 1 && (
-            <div className="absolute top-[60%] text-yellow-400/90 text-[13px] font-medium tracking-[0.4em] uppercase drop-shadow-[0_0_15px_rgba(234,179,8,0.6)]">
-              {combo}x PERFECT COMBO
+            <div key={combo} className="absolute top-[60%] text-white text-[14px] font-bold tracking-[0.4em] uppercase drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] animate-pop-in">
+              {combo}x PERFECT
             </div>
           )}
 
@@ -267,7 +296,6 @@ const handleInteraction = (e?: React.PointerEvent) => {
           )}
         </div>
 
-        {/* YENİ: Alt Panel (The Sanctuary & Butonlar) Taslağa Uyarlandı */}
         <div className="w-full flex flex-col pointer-events-none z-20">
           <div className="w-full bg-[#111] border-t border-b border-neutral-800 py-2 text-center shadow-[0_-5px_20px_rgba(0,0,0,0.8)]">
             <span className="text-[10px] text-neutral-400 tracking-[0.4em] uppercase font-light">The Sanctuary</span>
@@ -285,7 +313,6 @@ const handleInteraction = (e?: React.PointerEvent) => {
                 <span className="text-[9px] text-neutral-300 tracking-[0.2em] font-medium">UPGRADES</span>
               </button>
 
-              {/* YENİ: Taslaktaki Devasa Sarı Neon "TAP TO DROP" Butonu */}
               <button 
                 className="ui-btn w-28 h-28 rounded-full border-[2px] border-yellow-600/40 bg-gradient-to-b from-neutral-800 to-[#0a0a0a] flex items-center justify-center relative shadow-[0_0_30px_rgba(234,179,8,0.15)] hover:scale-105 active:scale-95 transition-all shrink-0 group"
                 onPointerDown={(e) => { e.stopPropagation(); handleInteraction(); }}
@@ -312,7 +339,6 @@ const handleInteraction = (e?: React.PointerEvent) => {
         </div>
       </div>
 
-      {/* Leaderboard & Shop Modals ... (Aynı Mantıkla Korundu) */}
       {mounted && isLeaderboardOpen && (
         <div className="absolute inset-0 bg-black/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 animate-fade-in">
           <div className="w-full max-w-md bg-[#0a0a0a] border border-neutral-800 rounded-sm p-6 shadow-2xl relative">
