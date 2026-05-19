@@ -114,13 +114,11 @@ export default function Home() {
     }
   };
 
-  // YENİ: Gelir Modeli (Destek) Linki
+// YENİ: Gelir Modeli (Destek) Linki
   const handleSupport = (e: React.PointerEvent) => {
     e.stopPropagation();
-    // Buradaki linki daha sonra kendi BuyMeACoffee veya Patreon linkinle değiştireceksin
-    window.open('https://www.buymeacoffee.com/', '_blank');
+    window.open('https://patreon.com/Habip?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink', '_blank');
   };
-
   return (
     <main 
       className="relative w-full h-[100dvh] bg-[#0a0a0a] overflow-hidden font-sans select-none touch-none"
