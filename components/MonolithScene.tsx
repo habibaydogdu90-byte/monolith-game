@@ -1,48 +1,35 @@
 'use client';
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Edges, Environment } from '@react-three/drei';
+import { OrbitControls, Edges } from '@react-three/drei';
 import * as THREE from 'three';
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing';
 import { useGameStore, BlockData } from '@/store/useGameStore';
 import { playSound } from '@/utils/soundEngine';
 
-// TEMA MATERYAL AYARLARI
-const SKIN_CONFIGS: Record<string, { 
-  baseColor: string; activeColor: string; roughness: number; metalness: number; 
-  emissive?: string; useTexture: boolean; transmission?: number; thickness?: number; 
-  ior?: number; clearcoat?: number 
-}> = {
-  default: { baseColor: "#444444", activeColor: "#999999", roughness: 0.8, metalness: 0.2, useTexture: true },
-  cyber: { baseColor: "#001a14", activeColor: "#00ffcc", roughness: 0.1, metalness: 0.1, emissive: "#004d33", useTexture: false, transmission: 0.95, thickness: 0.5, ior: 1.5 },
-  obsidian: { baseColor: "#111115", activeColor: "#ffd700", roughness: 0.2, metalness: 0.9, emissive: "#221100", useTexture: false, clearcoat: 1.0 },
-  ruby: { baseColor: "#2b000a", activeColor: "#ff0055", roughness: 0.05, metalness: 0.3, emissive: "#440011", useTexture: false, transmission: 0.8, thickness: 1.2, ior: 1.8 }
+// YENİ VE HATASIZ: TASLAĞA SADIK AĞIR BETON VE ALTIN ÇATLAK RENKLERİ
+const SKIN_CONFIGS: Record<string, { baseColor: string; activeColor: string; roughness: number; metalness: number; emissive?: string; useTexture: boolean }> = {
+  default: { baseColor: "#7a7a7c", activeColor: "#ffc857", roughness: 1.0, metalness: 0.1, useTexture: true }, 
+  cyber: { baseColor: "#202528", activeColor: "#00ffcc", roughness: 0.8, metalness: 0.3, useTexture: false }, 
+  obsidian: { baseColor: "#111111", activeColor: "#ffd700", roughness: 0.9, metalness: 0.4, useTexture: false },
+  ruby: { baseColor: "#2a1f22", activeColor: "#ff0055", roughness: 0.8, metalness: 0.2, useTexture: false }
 };
 
-// YENİ: SANCTUARY ŞEHRİ (Arka Plandaki Dev Yapılar)
 function Cityscape() {
   const highScore = useGameStore(state => state.highScore);
-  
-  // Skor arttıkça bina sayısı artar (Her 50 puanda 1 yeni devasa bina eklenir, max 40 bina)
   const buildingCount = Math.min(40, Math.floor(highScore / 50) + 5); 
 
   const buildings = useMemo(() => {
     const arr = [];
-    // Dünyanın etrafına rastgele ama sabit koordinatlarda binalar yerleştir
     for(let i = 0; i < 40; i++) {
-       // Sadece hak edilen kadar bina görünür olur
        const isVisible = i < buildingCount;
-       const height = 10 + Math.random() * 30; // 10 ile 40 metre arası dev binalar
-       
-       // Binaları arka plana ve yanlara yay (oyun alanını kapatmayacak şekilde)
+       const height = 10 + Math.random() * 40; 
        const angle = Math.random() * Math.PI * 2;
-       const radius = 25 + Math.random() * 25; // Merkezden uzaklık (25-50 birim)
-       
+       const radius = 25 + Math.random() * 30; 
        const x = Math.cos(angle) * radius;
        const z = Math.sin(angle) * radius;
-       
-       const width = 3 + Math.random() * 5;
-       const depth = 3 + Math.random() * 5;
+       const width = 2 + Math.random() * 6;
+       const depth = 2 + Math.random() * 6;
        arr.push({ x, z, width, height, depth, isVisible });
     }
     return arr;
@@ -53,69 +40,10 @@ function Cityscape() {
       {buildings.map((b, i) => b.isVisible && (
         <mesh key={i} position={[b.x, b.height / 2 - 5, b.z]} castShadow receiveShadow>
           <boxGeometry args={[b.width, b.height, b.depth]} />
-          {/* Binalar zifiri karanlık, sadece kenarlardan ışık alıyor */}
-          <meshStandardMaterial color="#050506" roughness={0.9} metalness={0.1} />
-          {/* Binaların kenarlarında fütüristik hafif neon çizgiler (Şehir aurası) */}
-          <Edges scale={1.001} threshold={15}>
-             <lineBasicMaterial color="#1a1a24" toneMapped={false} />
-          </Edges>
+          <meshStandardMaterial color="#0a0a0c" roughness={1} metalness={0} />
         </mesh>
       ))}
     </group>
-  );
-}
-
-function Shockwave({ size }: { size: [number, number, number] }) {
-  const ref = useRef<THREE.Mesh>(null);
-  const currentSkin = useGameStore(state => state.currentSkin);
-  const skin = SKIN_CONFIGS[currentSkin] || SKIN_CONFIGS.default;
-
-  useFrame(() => {
-    if (ref.current && ref.current.scale.x < 1.8) {
-      ref.current.scale.x += 0.06;
-      ref.current.scale.y += 0.06; 
-      (ref.current.material as THREE.MeshBasicMaterial).opacity = Math.max(0, (ref.current.material as THREE.MeshBasicMaterial).opacity - 0.04);
-    }
-  });
-  return (
-    <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.51, 0]}>
-      <planeGeometry args={[size[0], size[2]]} />
-      <meshBasicMaterial color={skin.activeColor} transparent opacity={1} toneMapped={false} wireframe />
-    </mesh>
-  );
-}
-
-function RubbleParticle({ size }: { size: [number, number, number] }) {
-  const ref = useRef<THREE.Mesh>(null);
-  const currentSkin = useGameStore(state => state.currentSkin);
-  const skin = SKIN_CONFIGS[currentSkin] || SKIN_CONFIGS.default;
-  
-  const velocity = useRef(new THREE.Vector3((Math.random() - 0.5) * 0.4, Math.random() * 0.4, (Math.random() - 0.5) * 0.4));
-  const rotationSpeed = useRef(new THREE.Vector3(Math.random() * 0.2, Math.random() * 0.2, Math.random() * 0.2));
-
-  useFrame(() => {
-    if (ref.current) {
-      ref.current.position.add(velocity.current);
-      velocity.current.y -= 0.02; 
-      ref.current.rotation.x += rotationSpeed.current.x;
-      ref.current.rotation.y += rotationSpeed.current.y;
-      ref.current.scale.multiplyScalar(0.92); 
-    }
-  });
-
-  const pSize = (Math.random() * 0.15 + 0.05) * Math.max(size[0], size[2]);
-
-  return (
-    <mesh ref={ref}>
-      <boxGeometry args={[pSize, pSize, pSize]} />
-      <meshPhysicalMaterial 
-        color={skin.activeColor} 
-        roughness={skin.roughness} 
-        metalness={skin.metalness}
-        transmission={skin.transmission || 0}
-        thickness={skin.thickness || 0}
-      />
-    </mesh>
   );
 }
 
@@ -127,7 +55,7 @@ function CameraController() {
   useEffect(() => {
     if (actionTrigger > 0 && gameState === 'playing') {
       const isPerfect = blocks[blocks.length - 1]?.isPerfect;
-      setShake(isPerfect ? 0.05 : 0.25); 
+      setShake(isPerfect ? 0.03 : 0.15); 
     }
   }, [actionTrigger, gameState, blocks]);
 
@@ -135,7 +63,6 @@ function CameraController() {
     if (gameState === 'gameover') {
       const targetCenterY = blocks.length / 2;
       let camY = THREE.MathUtils.lerp(state.camera.position.y, blocks.length + 6, 0.02);
-      
       state.camera.position.y = camY;
       if (controlsRef.current) {
         controlsRef.current.target.y = THREE.MathUtils.lerp(controlsRef.current.target.y, targetCenterY, 0.02);
@@ -143,7 +70,7 @@ function CameraController() {
       }
     } else if (gameState !== 'city_view') {
       const targetY = blocks.length > 3 ? blocks.length - 2 : 0;
-      let camY = THREE.MathUtils.lerp(state.camera.position.y, targetY + 18, 0.05);
+      let camY = THREE.MathUtils.lerp(state.camera.position.y, targetY + 12, 0.05);
       let targetCenterY = THREE.MathUtils.lerp(controlsRef.current?.target.y || 0, targetY, 0.05);
 
       let currentShakeX = 0;
@@ -152,7 +79,7 @@ function CameraController() {
       if (shake > 0) {
         currentShakeX = (Math.random() - 0.5) * shake;
         currentShakeZ = (Math.random() - 0.5) * shake;
-        setShake((s) => Math.max(0, s - 0.015)); 
+        setShake((s) => Math.max(0, s - 0.01)); 
       }
 
       state.camera.position.y = camY;
@@ -163,7 +90,6 @@ function CameraController() {
         controlsRef.current.target.y = targetCenterY;
         controlsRef.current.update();
       }
-
       state.camera.position.x -= currentShakeX;
       state.camera.position.z -= currentShakeZ;
     }
@@ -176,11 +102,12 @@ function CameraController() {
       enableRotate={gameState !== 'playing'} 
       enablePan={false} 
       autoRotate={gameState === 'gameover'}
-      autoRotateSpeed={1.0} // Dönüş hızı şehrin ihtişamını izlemek için biraz yavaşlatıldı
+      autoRotateSpeed={0.5} 
     />
   );
 }
 
+// YUMUŞATILMIŞ IŞIK EFEKTİ (Kör edici beyaz patlama düzeltildi)
 function ImpactEffects() {
   const { blocks, actionTrigger, gameState, currentSkin } = useGameStore();
   const lightRef = useRef<THREE.PointLight>(null);
@@ -189,13 +116,13 @@ function ImpactEffects() {
 
   useEffect(() => {
     if (actionTrigger > 0 && gameState === 'playing') {
-      setIntensity(50); 
+      setIntensity(8); // Eskiden 50'ydi, çok patlıyordu. Şimdi 8.
     }
   }, [actionTrigger, gameState]);
 
   useFrame(() => {
     if (intensity > 0) {
-      setIntensity((prev) => Math.max(0, prev - 0.3)); 
+      setIntensity((prev) => Math.max(0, prev - 0.4)); 
       if (lightRef.current) {
          lightRef.current.intensity = intensity;
       }
@@ -210,7 +137,7 @@ function ImpactEffects() {
     <pointLight
       ref={lightRef}
       position={[lastBlock.position[0], lastBlock.position[1] - 0.2, lastBlock.position[2]]}
-      distance={15}
+      distance={10}
       color={isPerfect ? skin.activeColor : "#ffffff"}
       intensity={0}
     />
@@ -230,29 +157,23 @@ function FallingDebris({ data, colorMap, normalMap }: DebrisProps) {
 
   useFrame(() => {
     if (meshRef.current) {
-      meshRef.current.position.y -= 0.15; 
-      meshRef.current.rotation.x += 0.03; 
-      meshRef.current.rotation.z += 0.03;
+      meshRef.current.position.y -= 0.2; 
+      meshRef.current.rotation.x += 0.02; 
+      meshRef.current.rotation.z += 0.02;
     }
   });
   return (
     <group ref={meshRef} position={data.position}>
-      <mesh scale={data.size}>
+      <mesh scale={data.size} castShadow>
         <boxGeometry args={[1, 1, 1]} />
-        <meshPhysicalMaterial 
+        <meshStandardMaterial 
           map={skin.useTexture ? colorMap : undefined} 
           normalMap={skin.useTexture ? normalMap : undefined} 
           color={skin.baseColor} 
           roughness={skin.roughness}
           metalness={skin.metalness}
-          transmission={skin.transmission || 0}
-          thickness={skin.thickness || 0}
-          ior={skin.ior || 1.5}
-          clearcoat={skin.clearcoat || 0}
-          clearcoatRoughness={0.1}
         />
       </mesh>
-      {[...Array(6)].map((_, i) => <RubbleParticle key={i} size={data.size} />)}
     </group>
   );
 }
@@ -272,9 +193,8 @@ function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
   const axis = level % 2 === 0 ? 'x' : 'z'; 
   
   const baseSpeed = 2.0;
-  const speedMultiplier = 1 + Math.min(level * 0.06, 1.5);
-  const rhythmVariation = Math.sin(level * Math.PI / 4) * 0.6; 
-  const speed = baseSpeed * speedMultiplier + rhythmVariation;
+  const speedMultiplier = 1 + Math.min(level * 0.05, 1.2);
+  const speed = baseSpeed * speedMultiplier;
 
   useEffect(() => {
     if (actionTrigger === 0 || gameState !== 'playing' || !meshRef.current) return;
@@ -296,15 +216,7 @@ function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
       if (isPerfect) {
         playSound('perfect'); 
         newPos[axisIndex] = targetPos; 
-        
-        let isGrowth = false;
-        if (combo >= 2 && (newSize[0] < 3 || newSize[2] < 3)) {
-          isGrowth = true;
-          newSize[0] = Math.min(3, newSize[0] + 0.4);
-          newSize[2] = Math.min(3, newSize[2] + 0.4);
-        }
-        
-        addBlock({ position: newPos, size: newSize }, true, isGrowth);
+        addBlock({ position: newPos, size: newSize }, true, false);
       } else {
         playSound('drop'); 
         const overhang = distance;
@@ -328,7 +240,7 @@ function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
   useFrame((state) => {
     if (gameState !== 'playing' || !meshRef.current) return;
     const time = state.clock.getElapsedTime();
-    const positionOffset = Math.sin(time * speed) * 4; 
+    const positionOffset = Math.sin(time * speed) * 4.5; 
     
     if (axis === 'x') {
       meshRef.current.position.set(lastBlock.position[0] + positionOffset, lastBlock.position[1] + 1, lastBlock.position[2]);
@@ -340,29 +252,21 @@ function ActiveBlock({ colorMap, normalMap }: ActiveBlockProps) {
   if (gameState !== 'playing') return null;
 
   return (
-    <>
-      <mesh ref={meshRef} scale={lastBlock.size} castShadow>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshPhysicalMaterial 
-          map={skin.useTexture ? colorMap : undefined} 
-          normalMap={skin.useTexture ? normalMap : undefined} 
-          color={skin.activeColor} 
-          roughness={skin.roughness}
-          metalness={skin.metalness}
-          emissive={skin.emissive}
-          emissiveIntensity={skin.emissive ? 1.5 : 0}
-          transmission={skin.transmission || 0}
-          thickness={skin.thickness || 0}
-          ior={skin.ior || 1.5}
-          clearcoat={skin.clearcoat || 0}
-          clearcoatRoughness={0.1}
-        />
+    <mesh ref={meshRef} scale={lastBlock.size} castShadow receiveShadow>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial 
+        map={skin.useTexture ? colorMap : undefined} 
+        normalMap={skin.useTexture ? normalMap : undefined} 
+        color={skin.baseColor} 
+        roughness={skin.roughness}
+        metalness={skin.metalness}
+      />
+      {/* HOLOGRAFİK YEŞİL IZGARA (Lazer Hedefleme) */}
+      <mesh position={[0, -0.501, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[1, 1, 4, 4]} />
+        <meshBasicMaterial color="#00ff66" wireframe transparent opacity={0.6} toneMapped={false} />
       </mesh>
-      <mesh position={[lastBlock.position[0], lastBlock.position[1] + 0.502, lastBlock.position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[lastBlock.size[0], lastBlock.size[2], 5, 5]} />
-        <meshBasicMaterial color={skin.activeColor} wireframe transparent opacity={0.3} toneMapped={false} />
-      </mesh>
-    </>
+    </mesh>
   );
 }
 
@@ -376,82 +280,76 @@ export default function MonolithScene() {
     loader.load('/textures/concrete_color.jpg', (colorMap) => {
       colorMap.wrapS = THREE.RepeatWrapping;
       colorMap.wrapT = THREE.RepeatWrapping;
+      colorMap.repeat.set(2, 2);
       setTextures(prev => ({ ...prev, color: colorMap }));
     });
     loader.load('/textures/concrete_normal.png', (normalMap) => {
       normalMap.wrapS = THREE.RepeatWrapping;
       normalMap.wrapT = THREE.RepeatWrapping;
+      normalMap.repeat.set(2, 2);
       setTextures(prev => ({ ...prev, normal: normalMap }));
     });
   }, []);
 
   return (
-    <div className="absolute inset-0 z-0 bg-[#070709]">
-      <Canvas shadows={{ type: THREE.PCFSoftShadowMap }} dpr={[1, 2]} camera={{ position: [14, 18, 14], fov: 25 }}>
+    <div className="absolute inset-0 z-0 bg-[#0a0b0e]">
+      <Canvas shadows={{ type: THREE.PCFSoftShadowMap }} dpr={[1, 2]} camera={{ position: [16, 20, 16], fov: 20 }}>
         
-        <color attach="background" args={['#070709']} />
-        <fogExp2 attach="fog" args={['#070709', 0.035]} />
+        <color attach="background" args={['#0a0b0e']} />
+        <fogExp2 attach="fog" args={['#0a0b0e', 0.025]} />
         
-        <Environment preset="studio" environmentIntensity={0.8} />
-        <ambientLight intensity={0.05} />
+        <ambientLight intensity={0.1} />
         
         <directionalLight 
           castShadow 
-          position={[10, 20, -10]} 
-          intensity={6} 
-          color="#fdf4dc" 
+          position={[12, 18, 5]} 
+          intensity={4.5} 
+          color="#ffffff" 
           shadow-mapSize={[2048, 2048]} 
-          shadow-bias={-0.0001} 
+          shadow-bias={-0.0005} 
         />
         
-        <directionalLight position={[-10, 5, 10]} intensity={1.5} color="#4a5568" />
-
-        {/* YENİ: Arka Plan Şehri Çağrılıyor */}
         <Cityscape />
 
         <ImpactEffects />
 
         {gameState !== 'city_view' && (
-          <>
+          <group position={[0, -2, 0]}>
             {blocks.map((block, i) => (
               <mesh key={i} position={block.position} scale={block.size} receiveShadow castShadow>
                 <boxGeometry args={[1, 1, 1]} />
-                <meshPhysicalMaterial 
+                <meshStandardMaterial 
                   map={skin.useTexture ? textures.color : undefined} 
                   normalMap={skin.useTexture ? textures.normal : undefined} 
-                  color={i === 0 ? "#1a1a1a" : skin.baseColor} 
+                  color={i === 0 ? "#111" : skin.baseColor} 
                   roughness={skin.roughness}
                   metalness={skin.metalness}
-                  emissive={i > 0 ? skin.emissive : undefined}
-                  emissiveIntensity={skin.emissive ? 1.0 : 0}
-                  transmission={skin.transmission || 0}
-                  thickness={skin.thickness || 0}
-                  ior={skin.ior || 1.5}
-                  clearcoat={skin.clearcoat || 0}
-                  clearcoatRoughness={0.1}
                 />
+                
+                {/* ALTIN ÇATLAK (PERFECT COMBO) EFEKTİ */}
                 {block.isPerfect && (
-                  <Edges scale={1.002} threshold={15}>
-                    <lineBasicMaterial color={skin.activeColor} toneMapped={false} />
+                  <Edges scale={1.01} threshold={10}>
+                    <lineBasicMaterial color={skin.activeColor} transparent opacity={0.9} toneMapped={false} />
                   </Edges>
                 )}
               </mesh>
             ))}
             {debris.map((piece, i) => <FallingDebris key={i} data={piece} colorMap={textures.color} normalMap={textures.normal} />)}
             <ActiveBlock colorMap={textures.color} normalMap={textures.normal} />
-          </>
+          </group>
         )}
 
-        <mesh receiveShadow position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[300, 300]} />
-          <meshStandardMaterial color="#070709" roughness={1} />
+        <mesh receiveShadow position={[0, -2.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[100, 100]} />
+          <shadowMaterial opacity={0.8} />
         </mesh>
 
         <CameraController />
 
         <EffectComposer multisampling={0}>
-          <Bloom luminanceThreshold={0.4} luminanceSmoothing={0.9} intensity={3.5} mipmapBlur />
-          <Vignette eskil={false} offset={0.3} darkness={1.2} />
+          <Bloom luminanceThreshold={0.5} luminanceSmoothing={0.8} intensity={2.5} mipmapBlur />
+          <Noise opacity={0.03} /> 
+          <Vignette eskil={false} offset={0.2} darkness={1.5} />
         </EffectComposer>
       </Canvas>
     </div>
