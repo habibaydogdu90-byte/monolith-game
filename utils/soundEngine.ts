@@ -1,40 +1,68 @@
-class SoundEngine {
-  private sounds: Record<string, HTMLAudioElement> = {};
-  private initialized = false;
+import { useGameStore } from '@/store/useGameStore';
 
-  init(): void {
-    if (this.initialized || typeof window === 'undefined') return;
-    
-    try {
-      this.sounds.drop = new window.Audio('/sounds/drop.mp3');
-      this.sounds.perfect = new window.Audio('/sounds/perfect.mp3');
-      this.sounds.gameover = new window.Audio('/sounds/gameover.mp3');
-      
-      Object.values(this.sounds).forEach(audio => {
-        audio.load();
-        audio.volume = 0.7;
-      });
-      
-      this.initialized = true;
-    } catch (error) {
-      console.warn("[Ses Motoru] Başlatılamadı:", error);
-    }
+let audioCtx: AudioContext | null = null;
+
+export const initAudio = () => {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
   }
-
-  play(name: 'drop' | 'perfect' | 'gameover'): void {
-    if (!this.initialized) this.init();
-    if (typeof window === 'undefined') return;
-    
-    const sound = this.sounds[name];
-    if (sound) {
-      sound.currentTime = 0;
-      sound.play().catch(() => {
-        // Tarayıcı etkileşim uyarısını sessizce geçiştirir
-      });
-    }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
   }
-}
+};
 
-export const soundEngine = new SoundEngine();
-export const initAudio = (): void => soundEngine.init();
-export const playSound = (name: 'drop' | 'perfect' | 'gameover'): void => soundEngine.play(name);
+export const playSound = (type: 'drop' | 'perfect' | 'gameover') => {
+  if (!audioCtx) return;
+
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+
+  osc.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+
+  if (type === 'drop') {
+    // Derin Beton Düşüş Sesi (Sub-bass thud)
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.5);
+    
+    gainNode.gain.setValueAtTime(0.5, t);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+    
+    osc.start(t);
+    osc.stop(t + 0.3);
+
+  } else if (type === 'perfect') {
+    // ASMR Kristal/Cam Çınlaması (Kombo arttıkça nota yükselir)
+    // Zustand store'dan anlık kombo sayısını alıyoruz
+    const currentCombo = useGameStore.getState().combo;
+    
+    // Her komboda frekansı %15 artırarak o "tırmanış" hissini (Dopamin) veriyoruz
+    const baseFreq = 600; 
+    const pitchMultiplier = Math.pow(1.15, Math.min(currentCombo, 15)); 
+    
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(baseFreq * pitchMultiplier, t);
+    osc.frequency.exponentialRampToValueAtTime((baseFreq * pitchMultiplier) / 2, t + 0.8);
+
+    // Hafif yankı (reverb) hissi için sesin yavaşça sönümlenmesi
+    gainNode.gain.setValueAtTime(0.3, t);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
+
+    osc.start(t);
+    osc.stop(t + 0.8);
+
+  } else if (type === 'gameover') {
+    // Güç Kesilmesi / Sistem Çöküşü (Sinematik bass drop)
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(200, t);
+    osc.frequency.exponentialRampToValueAtTime(10, t + 1.5);
+
+    gainNode.gain.setValueAtTime(0.3, t);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, t + 1.5);
+
+    osc.start(t);
+    osc.stop(t + 1.5);
+  }
+};
