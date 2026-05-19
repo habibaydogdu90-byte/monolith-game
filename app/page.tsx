@@ -45,10 +45,16 @@ export default function Home() {
     initGameData();
   }, [initGameData]);
 
-  const handleInteraction = (e?: React.PointerEvent) => {
+const handleInteraction = (e?: React.PointerEvent) => {
     if (e && (e.target as HTMLElement).closest('.ui-btn')) return;
     if (e && (e.target as HTMLElement).tagName === 'INPUT') return; 
     if (isShopOpen || isLeaderboardOpen) return;
+
+    // YENİ: Haptic Feedback (Titreşim)
+    // Eğer cihaz destekliyorsa (telefon/tablet), ekrana dokunulduğunda 15 milisaniyelik tok ve kısa bir titreşim verir.
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(15);
+    }
 
     initAudio(); 
     if (gameState === 'idle' || gameState === 'gameover') {
