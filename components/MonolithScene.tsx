@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Edges, Environment } from '@react-three/drei';
 import * as THREE from 'three';
@@ -7,17 +7,63 @@ import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { useGameStore, BlockData } from '@/store/useGameStore';
 import { playSound } from '@/utils/soundEngine';
 
-// YENİ: MATERYAL DEVRİMİ (Cam, Clearcoat ve Kırılma İndisleri Eklendi)
+// TEMA MATERYAL AYARLARI
 const SKIN_CONFIGS: Record<string, { 
   baseColor: string; activeColor: string; roughness: number; metalness: number; 
   emissive?: string; useTexture: boolean; transmission?: number; thickness?: number; 
   ior?: number; clearcoat?: number 
 }> = {
-  default: { baseColor: "#444444", activeColor: "#999999", roughness: 0.8, metalness: 0.2, useTexture: true }, // Brütalist Beton
-  cyber: { baseColor: "#001a14", activeColor: "#00ffcc", roughness: 0.1, metalness: 0.1, emissive: "#004d33", useTexture: false, transmission: 0.95, thickness: 0.5, ior: 1.5 }, // Saydam Neon Cam
-  obsidian: { baseColor: "#111115", activeColor: "#ffd700", roughness: 0.2, metalness: 0.9, emissive: "#221100", useTexture: false, clearcoat: 1.0 }, // Cilalı Altın/Obsidyen
-  ruby: { baseColor: "#2b000a", activeColor: "#ff0055", roughness: 0.05, metalness: 0.3, emissive: "#440011", useTexture: false, transmission: 0.8, thickness: 1.2, ior: 1.8 } // Kırmızı Kristal
+  default: { baseColor: "#444444", activeColor: "#999999", roughness: 0.8, metalness: 0.2, useTexture: true },
+  cyber: { baseColor: "#001a14", activeColor: "#00ffcc", roughness: 0.1, metalness: 0.1, emissive: "#004d33", useTexture: false, transmission: 0.95, thickness: 0.5, ior: 1.5 },
+  obsidian: { baseColor: "#111115", activeColor: "#ffd700", roughness: 0.2, metalness: 0.9, emissive: "#221100", useTexture: false, clearcoat: 1.0 },
+  ruby: { baseColor: "#2b000a", activeColor: "#ff0055", roughness: 0.05, metalness: 0.3, emissive: "#440011", useTexture: false, transmission: 0.8, thickness: 1.2, ior: 1.8 }
 };
+
+// YENİ: SANCTUARY ŞEHRİ (Arka Plandaki Dev Yapılar)
+function Cityscape() {
+  const highScore = useGameStore(state => state.highScore);
+  
+  // Skor arttıkça bina sayısı artar (Her 50 puanda 1 yeni devasa bina eklenir, max 40 bina)
+  const buildingCount = Math.min(40, Math.floor(highScore / 50) + 5); 
+
+  const buildings = useMemo(() => {
+    const arr = [];
+    // Dünyanın etrafına rastgele ama sabit koordinatlarda binalar yerleştir
+    for(let i = 0; i < 40; i++) {
+       // Sadece hak edilen kadar bina görünür olur
+       const isVisible = i < buildingCount;
+       const height = 10 + Math.random() * 30; // 10 ile 40 metre arası dev binalar
+       
+       // Binaları arka plana ve yanlara yay (oyun alanını kapatmayacak şekilde)
+       const angle = Math.random() * Math.PI * 2;
+       const radius = 25 + Math.random() * 25; // Merkezden uzaklık (25-50 birim)
+       
+       const x = Math.cos(angle) * radius;
+       const z = Math.sin(angle) * radius;
+       
+       const width = 3 + Math.random() * 5;
+       const depth = 3 + Math.random() * 5;
+       arr.push({ x, z, width, height, depth, isVisible });
+    }
+    return arr;
+  }, [buildingCount]);
+
+  return (
+    <group>
+      {buildings.map((b, i) => b.isVisible && (
+        <mesh key={i} position={[b.x, b.height / 2 - 5, b.z]} castShadow receiveShadow>
+          <boxGeometry args={[b.width, b.height, b.depth]} />
+          {/* Binalar zifiri karanlık, sadece kenarlardan ışık alıyor */}
+          <meshStandardMaterial color="#050506" roughness={0.9} metalness={0.1} />
+          {/* Binaların kenarlarında fütüristik hafif neon çizgiler (Şehir aurası) */}
+          <Edges scale={1.001} threshold={15}>
+             <lineBasicMaterial color="#1a1a24" toneMapped={false} />
+          </Edges>
+        </mesh>
+      ))}
+    </group>
+  );
+}
 
 function Shockwave({ size }: { size: [number, number, number] }) {
   const ref = useRef<THREE.Mesh>(null);
@@ -62,7 +108,6 @@ function RubbleParticle({ size }: { size: [number, number, number] }) {
   return (
     <mesh ref={ref}>
       <boxGeometry args={[pSize, pSize, pSize]} />
-      {/* YENİ: Parçacıklar da fiziksel materyale geçti */}
       <meshPhysicalMaterial 
         color={skin.activeColor} 
         roughness={skin.roughness} 
@@ -131,7 +176,7 @@ function CameraController() {
       enableRotate={gameState !== 'playing'} 
       enablePan={false} 
       autoRotate={gameState === 'gameover'}
-      autoRotateSpeed={1.5}
+      autoRotateSpeed={1.0} // Dönüş hızı şehrin ihtişamını izlemek için biraz yavaşlatıldı
     />
   );
 }
@@ -361,6 +406,9 @@ export default function MonolithScene() {
         
         <directionalLight position={[-10, 5, 10]} intensity={1.5} color="#4a5568" />
 
+        {/* YENİ: Arka Plan Şehri Çağrılıyor */}
+        <Cityscape />
+
         <ImpactEffects />
 
         {gameState !== 'city_view' && (
@@ -368,7 +416,6 @@ export default function MonolithScene() {
             {blocks.map((block, i) => (
               <mesh key={i} position={block.position} scale={block.size} receiveShadow castShadow>
                 <boxGeometry args={[1, 1, 1]} />
-                {/* YENİ: SABİT BLOKLAR İÇİN FİZİKSEL MATERYAL */}
                 <meshPhysicalMaterial 
                   map={skin.useTexture ? textures.color : undefined} 
                   normalMap={skin.useTexture ? textures.normal : undefined} 
