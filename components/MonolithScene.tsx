@@ -87,7 +87,8 @@ function CameraController() {
       }
     } else if (gameState !== 'city_view') {
       const targetY = blocks.length > 3 ? blocks.length - 2 : 0;
-      let camY = THREE.MathUtils.lerp(state.camera.position.y, targetY + 12, 0.05);
+      // YENİ: Kamera Yüksekliği Düşürüldü (+8) Daha devasa bir görünüm için
+      let camY = THREE.MathUtils.lerp(state.camera.position.y, targetY + 8, 0.05);
       let targetCenterY = THREE.MathUtils.lerp(controlsRef.current?.target.y || 0, targetY, 0.05);
 
       let currentShakeX = 0;
@@ -320,14 +321,24 @@ export default function MonolithScene() {
   }, []);
 
   return (
-    <div className="absolute inset-0 z-0 bg-[#101112]">
-      <Canvas shadows={{ type: THREE.PCFShadowMap }} dpr={[1, 2]} camera={{ position: [8, 12, 8], fov: 45 }}>
-        <color attach="background" args={['#101112']} />
-        <fog attach="fog" args={['#101112', 20, 70]} />
-        <Environment preset="city" environmentIntensity={0.8} />
+    <div className="absolute inset-0 z-0 bg-[#0a0a0a]">
+      {/* YENİ: Kamera Fov'u (açısı) ve Yüksekliği değiştirildi */}
+      <Canvas shadows={{ type: THREE.PCFShadowMap }} dpr={[1, 2]} camera={{ position: [6, 8, 6], fov: 50 }}>
+        {/* YENİ: Zifiri Karanlık Arkaplan ve Sis */}
+        <color attach="background" args={['#0a0a0a']} />
+        <fogExp2 attach="fog" args={['#0a0a0a', 0.06]} />
         
-        <ambientLight intensity={0.3} />
-        <directionalLight castShadow position={[12, 25, 8]} intensity={4} color="#ffeebb" shadow-mapSize={[2048, 2048]} shadow-bias={-0.0005} />
+        {/* YENİ: Yansımaların patlamaması için Environment kısıldı */}
+        <Environment preset="city" environmentIntensity={0.3} />
+        
+        {/* YENİ: Ortam Işığı Çok Kısıldı, Karanlık Sağlandı */}
+        <ambientLight intensity={0.1} />
+        
+        {/* YENİ: Dramatik Kenar Işığı (Rim Light) Arkadan Vuruyor */}
+        <directionalLight castShadow position={[8, 10, -8]} intensity={4} color="#ffffff" shadow-mapSize={[2048, 2048]} shadow-bias={-0.0005} />
+        
+        {/* YENİ: Ön/Alt kısımlar kapkaranlık kalmasın diye hafif dolgu ışığı */}
+        <directionalLight position={[-4, 2, 6]} intensity={0.8} color="#7090b0" />
 
         <ImpactEffects />
 
@@ -339,7 +350,7 @@ export default function MonolithScene() {
                 <meshStandardMaterial 
                   map={skin.useTexture ? textures.color : undefined} 
                   normalMap={skin.useTexture ? textures.normal : undefined} 
-                  color={i === 0 ? "#333333" : skin.baseColor} 
+                  color={i === 0 ? "#222222" : skin.baseColor} 
                   roughness={skin.roughness}
                   metalness={skin.metalness}
                   emissive={i > 0 ? skin.emissive : undefined}
@@ -357,10 +368,12 @@ export default function MonolithScene() {
           </>
         )}
 
-        <gridHelper args={[150, 75, '#1e2022', '#101112']} position={[0, -0.49, 0]} />
+        {/* IZGARA TAMAMEN SİLİNDİ */}
+
         <mesh receiveShadow position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[300, 300]} />
-          <meshStandardMaterial color="#101112" roughness={1} />
+          {/* Zemin Zifiri Siyah Yapıldı, sadece gölgeleri tutuyor */}
+          <meshStandardMaterial color="#0a0a0a" roughness={1} />
         </mesh>
 
         <CameraController />
